@@ -1,4 +1,8 @@
 dataPattern= Data_13TeV_Zee_2016_Lkh1_scaled
 background= Ztautau
-background=ZZ4l
+background= ttbar
+background= WWlvlv
+background= WZlvll
+background= ZZ4l
+background= ZZvvll
 scaled= 1

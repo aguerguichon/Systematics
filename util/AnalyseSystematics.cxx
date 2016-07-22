@@ -16,8 +16,9 @@ int main()
 
   EWAnalysis EWA("Systematics/ConfigFile/EWConfig.boost");
 
-  THStack *stackEW=EWA.AddEW(65, 115);
+  EWA.AddEW(65, 115);
   //  stackEW->Draw();
+  //stackEW->SaveAs("testStack.root");
 
   cout<<"End of program."<<endl;
   return 0;

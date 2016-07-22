@@ -15,12 +15,11 @@ class EWAnalysis
   EWAnalysis(std::string configFileName);
   ~EWAnalysis();
   
-  THStack* AddEW(double mMin, double mMax);
+  void AddEW(double mMin, double mMax);
 
  private:
   std::string m_dataPattern;
   std::vector <std::string> m_vectBkg;
   bool m_isScaled;
   
-}
-;
+};

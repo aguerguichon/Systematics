@@ -53,11 +53,10 @@ EWAnalysis::~EWAnalysis()
 }
 
 //================================
-THStack* EWAnalysis::AddEW(double mMin, double mMax)
+void EWAnalysis::AddEW(double mMin, double mMax)
 {
   string path="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/";
-
-  THStack *stack=0;
+  
   TFile *bkgFile=0;
   TTree *bkgTree=0;
   unsigned int nEntries;
@@ -65,6 +64,7 @@ THStack* EWAnalysis::AddEW(double mMin, double mMax)
   double m12;
   map <string, double> mapDouble;
   map <string, TH1D*> mapHist;
+  vector <TH1*> vectHist;
 
   for (unsigned int iBkg=0; iBkg<m_vectBkg.size(); iBkg++)
     {
@@ -93,17 +93,49 @@ THStack* EWAnalysis::AddEW(double mMin, double mMax)
 	  else
 	    {
 	      if (mapHist.count(m_vectBkg[iBkg])==0) mapHist.insert( make_pair(m_vectBkg[iBkg], new TH1D(m_vectBkg[iBkg].c_str(), "",mMax-mMin, mMin, mMax ) ) );
+	      mapHist[m_vectBkg[iBkg]]->Fill(m12);
 	    }
 	}
-      
+      cout<<m_vectBkg[iBkg]<<" added."<<endl;
     }
 
-    
-  // TFile *dataFile=TFile::Open( (path+m_dataPattern+"/"+m_dataPattern+"_0.root").c_str() );
-  // TTree *dataTree=(TTree*)dataFile->Get( (m_dataPattern+"_0_selectionTree").c_str() ); 
+  bkgFile->Close();
 
+  for (auto it: mapHist)                                             
+    {                                                                
+      vectHist.push_back(it.second);
+    }
+
+
+  TFile *dataFile=TFile::Open( (path+m_dataPattern+"/"+m_dataPattern+"_0.root").c_str() );
+  TTree *dataTree=(TTree*)dataFile->Get( (m_dataPattern+"_0_selectionTree").c_str() ); 
+
+  MapBranches mapBranches;
+  mapBranches.LinkTreeBranches(dataTree);
+  nEntries= dataTree->GetEntries();
+
+  TH1D *dataHist=new TH1D("data","", mMax-mMin, mMin, mMax);
+
+  for (unsigned int iEntry=0; iEntry<nEntries; iEntry++)
+    {
+      dataTree->GetEntry(iEntry);
+      mapDouble=mapBranches.GetMapDouble();
+      m12=mapDouble.at("m12");
+      
+      if (m12<mMin || m12>mMax) continue;
+      dataHist->Fill(m12);
+    }
+  
+  cout<<"Data added."<<endl;
+  vectHist.push_back(dataHist);
+  
+  vector <string> vectOpt;
+  vectOpt.push_back("stack=1");
+
+  DrawPlot(vectHist, "testStack", vectOpt); 
 
   //===================End
   cout<< "EWAnalysis::AddEW done."<<endl;
-  return stack;
+  delete bkgFile;
+  return;
 }
