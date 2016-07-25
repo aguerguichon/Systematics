@@ -63,16 +63,21 @@ void EWAnalysis::AddEW(double mMin, double mMax)
   string bkgPattern;
   double m12;
   map <string, double> mapDouble;
-  map <string, TH1D*> mapHist;
+  map <string, TH1*> mapHist;
   vector <TH1*> vectHist;
+
+  TH1::AddDirectory(kFALSE);
 
   for (unsigned int iBkg=0; iBkg<m_vectBkg.size(); iBkg++)
     {
       if (m_isScaled) bkgPattern="MC_13TeV_"+m_vectBkg[iBkg]+"_2015c_Lkh1_scaled";
       else bkgPattern="MC_13TeV_"+m_vectBkg[iBkg]+"_2015c_Lkh1"; 
+
       bkgFile= TFile::Open( (path+bkgPattern+"/"+bkgPattern+"_0.root").c_str() );
+
       bkgTree= (TTree*)bkgFile->Get( (bkgPattern+"_0_selectionTree").c_str() );
-    
+
+
       MapBranches mapBranches;
       mapBranches.LinkTreeBranches(bkgTree);
       nEntries= bkgTree->GetEntries();
@@ -87,19 +92,23 @@ void EWAnalysis::AddEW(double mMin, double mMax)
 
 	  if (m_vectBkg[iBkg]!="Ztautau" && m_vectBkg[iBkg]!="ttbar")
 	    {
-	      if (mapHist.count("Diboson")==0) mapHist.insert( make_pair("Diboson", new TH1D("Diboson", "",mMax-mMin, mMin, mMax ) ) );
+	      //if (mapHist.count("Diboson")==0) mapHist.insert( make_pair("Diboson", new TH1D("Diboson", "",mMax-mMin, mMin, mMax ) ) );
+	      if (mapHist.count("Diboson")==0) mapHist["Diboson"]= new TH1D("Diboson", "",mMax-mMin, mMin, mMax );
 	      mapHist["Diboson"]->Fill(m12);
 	    } 
 	  else
 	    {
-	      if (mapHist.count(m_vectBkg[iBkg])==0) mapHist.insert( make_pair(m_vectBkg[iBkg], new TH1D(m_vectBkg[iBkg].c_str(), "",mMax-mMin, mMin, mMax ) ) );
+	      //if (mapHist.count(m_vectBkg[iBkg])==0) mapHist.insert( make_pair(m_vectBkg[iBkg], new TH1D(m_vectBkg[iBkg].c_str(), "",mMax-mMin, mMin, mMax ) ) );
+	      string histName=m_vectBkg[iBkg];
+	      if (mapHist.count(m_vectBkg[iBkg])==0) mapHist[m_vectBkg[iBkg]]=new TH1D(histName.c_str(), "",mMax-mMin, mMin, mMax );
 	      mapHist[m_vectBkg[iBkg]]->Fill(m12);
 	    }
 	}
       cout<<m_vectBkg[iBkg]<<" added."<<endl;
+      bkgFile->Close();
     }
 
-  bkgFile->Close();
+
 
   for (auto it: mapHist)                                             
     {                                                                
@@ -114,7 +123,7 @@ void EWAnalysis::AddEW(double mMin, double mMax)
   mapBranches.LinkTreeBranches(dataTree);
   nEntries= dataTree->GetEntries();
 
-  TH1D *dataHist=new TH1D("data","", mMax-mMin, mMin, mMax);
+  TH1 *dataHist=new TH1D("data","", mMax-mMin, mMin, mMax);
 
   for (unsigned int iEntry=0; iEntry<nEntries; iEntry++)
     {
@@ -125,10 +134,9 @@ void EWAnalysis::AddEW(double mMin, double mMax)
       if (m12<mMin || m12>mMax) continue;
       dataHist->Fill(m12);
     }
-  
-  cout<<"Data added."<<endl;
+
   vectHist.push_back(dataHist);
-  
+
   vector <string> vectOpt;
   vectOpt.push_back("stack=1");
 
@@ -137,5 +145,7 @@ void EWAnalysis::AddEW(double mMin, double mMax)
   //===================End
   cout<< "EWAnalysis::AddEW done."<<endl;
   delete bkgFile;
+  delete dataFile;
+  delete dataHist;
   return;
 }
