@@ -1,8 +1,9 @@
 dataPattern= Data_13TeV_Zee_2016_Lkh1_scaled
-background= ttbar
-background= Ztautau
-background= WWlvlv
-background= WZlvll
-background= ZZ4l
-background= ZZvvll
+MC= ttbar
+MC= Ztautau
+MC= WWlvlv
+MC= WZlvll
+MC= ZZ4l
+MC= ZZvvll
+MC= Zee
 scaled= 1

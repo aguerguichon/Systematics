@@ -19,7 +19,7 @@ class EWAnalysis
 
  private:
   std::string m_dataPattern;
-  std::vector <std::string> m_vectBkg;
+  std::vector <std::string> m_vectMC;
   bool m_isScaled;
   
 };
