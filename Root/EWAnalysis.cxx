@@ -20,6 +20,7 @@
 #include "PlotFunctions/MapBranches.h"
 #include "PlotFunctions/DrawPlot.h"
 
+using namespace ChrisLib;
 using namespace std;
 namespace po = boost::program_options;
 
@@ -63,7 +64,6 @@ void EWAnalysis::AddEW(double mMin, double mMax)
   unsigned int nEntries;
   string MCPattern;
   double m12, weight;
-  map <string, double> mapDouble;
   map <string, TH1*> mapHist;
   vector <TH1*> vectHist;
   THStack *stack=new THStack("stackEW", "");
@@ -94,9 +94,8 @@ void EWAnalysis::AddEW(double mMin, double mMax)
       for (unsigned int iEntry=0; iEntry<nEntries; iEntry++)
 	{
 	  MCTree->GetEntry(iEntry);
-	  mapDouble=mapBranches.GetMapDouble();
-	  m12=mapDouble.at("m12");
-	  weight=mapDouble.at("weight")/weightLumi;
+	  m12=mapBranches.GetDouble("m12");
+	  weight=mapBranches.GetDouble("weight")/weightLumi;
 	  
 	  if (m12<mMin || m12>mMax) continue;
 
@@ -143,8 +142,7 @@ void EWAnalysis::AddEW(double mMin, double mMax)
   for (unsigned int iEntry=0; iEntry<nEntries; iEntry++)
     {
       dataTree->GetEntry(iEntry);
-      mapDouble=mapBranches.GetMapDouble();
-      m12=mapDouble.at("m12");
+      m12=mapBranches.GetDouble("m12");
       
       if (m12<mMin || m12>mMax) continue;
       dataHist->Fill(m12); 

@@ -1,0 +1,25 @@
+inputType=0
+
+rootFileName=/sps/atlas/a/aguerguichon/Calibration/Bias/Inversion/IndepDistorded/CiMatricesInv_1.root
+objName=histBin
+legend=analytical
+
+rootFileName=/sps/atlas/a/aguerguichon/Calibration/Bias/Inversion/IndepDistorded/CiMatricesInv_11.root
+objName=histBin
+legend=c
+
+rootFileName=/sps/atlas/a/aguerguichon/Calibration/Bias/Inversion/IndepDistorded/CiMatricesInv_12.root
+objName=histBin
+legend=c^{2}
+
+legendPos=0.75 0.85
+latex= Inversion method:
+latexOpt=0.75 0.9
+latex=Input: 0.007
+latexOpt= 0.15 0.85
+latex=Stat: 100k
+latexOpt= 0.15 0.8
+xTitle=Bin
+yTitle=<c_{i}-c^{input}>
+extendUp=0.5
+plotDirectory= /sps/atlas/a/aguerguichon/Calibration/Bias/Inversion/IndepDistorded/
