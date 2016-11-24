@@ -47,12 +47,13 @@ int main()
   TCanvas *c1=0;
   TH1D *histTmp=0;
 
-  unsigned int nEntries;
   unsigned long long timeMin=1e11;
   unsigned int timeMax=0;
-  double meanZDistri, m12, muPU, timeStamp; 
+  double meanZDistri=0;
+  double m12, muPU, timeStamp; 
   vector <string> vectOpt;
-
+  double counter;
+  double nZ2015=0;
 
   float sizeText=0.05;
   float x=0.3;
@@ -61,56 +62,43 @@ int main()
   
   vector <double> mean (2);
 
-  bool isMuPU=1;
+  bool isMuPU=0;
+  bool supMC=1;
 
   if (isMuPU) name=savePath+"Mu";
   else name=savePath+"Time";
   vectYear[0]= "15";
   vectYear[1]= "16";
 
-  pattern="Data15_13TeV_Zee_Lkh1";
-  fileName=path+pattern+"/"+pattern+"_0.root";
-  inFile= TFile::Open(fileName.c_str());
-
-  TH1 *ZMass= (TH1*) inFile->Get( "Data15_13TeV_Zee_Lkh1_0_ZMass");
-  meanZDistri= ZMass->GetMean();
-  cout<<meanZDistri<<endl;
-  ZMass->SetBinContent(0,0);
-  ZMass->SetBinContent(ZMass->GetNbinsX()+1,0);
-  cout<<ZMass->GetMean()<<endl;
-  inFile->Close();
-
   for (unsigned int year=0; year<vectYear.size(); year++)
     {
-      float counter=0;
+      counter=0;
       mean[year]=0;
       pattern="Data"+vectYear[year]+"_13TeV_Zee_Lkh1";
-      if (isMuPU) prof = new TProfile ("hprof", "", 30, 0, 30 );
-      for (int iFile=0; iFile<10; iFile++) 
+      if (isMuPU) prof = new TProfile ("hprof", "", 50, 0, 50 );
+      for (int iFile=0; iFile<50; iFile++) 
 	{
 	  fileName=path+pattern+"/"+pattern+"_"+to_string(iFile)+".root";
-	  inFile=0;
 	  inFile= TFile::Open(fileName.c_str());
 
 	  if (!inFile) break;
 	  cout<<"File: "<<fileName.c_str()<<endl;
-	  inTree=0;
 	  inTree= (TTree*) inFile->Get( (pattern+"_"+to_string(iFile)+"_selectionTree").c_str() );
 
 	  MapBranches mapBranches;
 	  mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "muPU", "eta_calo_1", "eta_calo_2"});
 
-	  nEntries= inTree->GetEntries();
 
-	  for (unsigned int iEntry=0; iEntry<nEntries; iEntry++)
+	  for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
 	    {
 	      inTree->GetEntry(iEntry);
 
 	      m12=mapBranches.GetDouble("m12");
 	      muPU=mapBranches.GetDouble("muPU");
 	      timeStamp=mapBranches.GetLongLong("timeStamp");
-	      
+
 	      if (m12<80 || m12>100) continue;
+	      if (year==0){meanZDistri+=m12; nZ2015++;}
 	      //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 && fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
 	      //if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
 	      //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 && mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
@@ -126,7 +114,10 @@ int main()
 	    }
 	  inFile->Close();
 	}//end iFile
-   
+      if (year==0) meanZDistri/=nZ2015;
+      mean[year]/=(counter*meanZDistri);
+      cout<<"year: "<<year<<" mean: "<<mean[year]<<endl;
+
       if (isMuPU)
 	{
 	  prof->Scale(1/meanZDistri);
@@ -142,20 +133,66 @@ int main()
 	    }
 	  vectProf.push_back(prof);
 	} 
-      mean[year]=(mean[year]/counter)/meanZDistri;
-      cout<<"year: "<<year<<" mean: "<<mean[year]<<endl;
    }//end year
+
+
+  if (supMC )
+    {
+      counter=0;
+      meanZDistri=0;
+      prof = new TProfile ("hprofMC", "", 50, 0, 50 );
+      for (int iFile=0; iFile <50; iFile++)
+        {
+          fileName="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/MC15c_13TeV_Zee_Lkh1/MC15c\
+_13TeV_Zee_Lkh1_"+to_string(iFile)+".root";
+          inFile= TFile::Open(fileName.c_str());
+
+          if (!inFile) break;
+          cout<<"File: "<<iFile<<" MC"<<endl;
+          inTree=0;
+          inTree= (TTree*) inFile->Get( ("MC15c_13TeV_Zee_Lkh1_"+to_string(iFile)+"_selection\
+Tree").c_str() );
+
+          MapBranches mapBranches;
+          mapBranches.LinkTreeBranches(inTree, 0, {"m12", "muPU"});
+
+          for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
+            {
+              inTree->GetEntry(iEntry);
+              m12=mapBranches.GetDouble("m12");
+              muPU=mapBranches.GetDouble("muPU");
+              if (m12<80 || m12>100) continue;
+              meanZDistri+=m12;
+              counter++;
+              prof->Fill(muPU, m12);
+            }
+          inFile->Close();
+        }//end iFile                                                                          
+      meanZDistri/=counter;
+      prof->Scale(1/meanZDistri);
+      cout<<"meanZ mc: "<<meanZDistri<<endl;
+      vectProf.push_back(prof);
+      vectOpt.clear();
+      vectOpt.push_back("xTitle= #mu");
+      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(MC)>");
+      vectOpt.push_back("rangeUserY= 0.998 1.005");
+      vectOpt.push_back("rangeUserX= 5 46");
+      vectOpt.push_back("line=1");
+      vectOpt.push_back("extension=pdf");
+      DrawPlot(vectProf, "MC", vectOpt);
+      vectOpt.clear();
+    }
+
 
 
   if (isMuPU)
     {
       vectOpt.push_back("xTitle= #mu");
-      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
-      vectOpt.push_back("rangeUserY= 0.9996 1.0008");
-      vectOpt.push_back("rangeUserX= 5 31");
+      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2016)>");
+      vectOpt.push_back("rangeUserY= 0.998 1.005");
+      vectOpt.push_back("rangeUserX= 5 46");
       vectOpt.push_back("line=1");
       vectOpt.push_back("drawStyle=4");
-      vectOpt.push_back("plotDirectory="+savePath);
       vectOpt.push_back("extension=root");
       DrawPlot(vectProf, name, vectOpt);
     
@@ -165,7 +202,8 @@ int main()
       c1->cd();
       
       ATLASLabel(0.22, 0.87, "Work in progress", 1, 0.06);
-      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.1 (2015) + 25.5 (2016) fb^{-1}", sizeText);
+      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", sizeText);
+      //      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
 
       histTmp=(TH1D*)c1->GetListOfPrimitives()->At(4);
       histTmp->SetMarkerStyle(25);
@@ -182,13 +220,13 @@ int main()
       yearHist="2015";
       myLineText( x, y-0.08, histTmp->GetLineColor(), histTmp->GetLineStyle(), "", sizeText, histTmp->GetLineWidth(), lsize  ); 
       myMarkerText( x, y-0.08, histTmp->GetMarkerColor(), histTmp->GetMarkerStyle(), yearHist.c_str(), sizeText, histTmp->GetMarkerSize(), lsize); 
-      //histTmp->BufferEmpty(1);
-      //histTmp->GetYaxis()->SetTitleSize(0.05);
-      //histTmp->GetYaxis()->SetTitleOffset(1.10);
-      //histTmp->GetYaxis()->SetLabelSize(0.04);
+      
+      histTmp->GetYaxis()->SetTitleSize(0.05);
+      histTmp->GetYaxis()->SetTitleOffset(1.10);
+      histTmp->GetYaxis()->SetLabelSize(0.04);
       histTmp->GetXaxis()->SetTitleSize(0.5);
-      //      histTmp->GetXaxis()->SetTitleOffset(1.20);
-      //      histTmp->GetXaxis()->SetLabelSize(0.05);
+      histTmp->GetXaxis()->SetTitleOffset(1.20);
+      histTmp->GetXaxis()->SetLabelSize(0.05);
 
       c1->SaveAs((savePath+"Mee_mu.pdf").c_str());
 
@@ -212,15 +250,14 @@ int main()
 	      inTree= (TTree*) inFile->Get( (pattern+"_"+to_string(iFile)+"_selectionTree").c_str() );
 	      MapBranches mapBranches;
 	      mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "eta_calo_1", "eta_calo_2"});
-	      nEntries= inTree->GetEntries();
-	      for (unsigned int iEntry=0; iEntry<nEntries; iEntry++)
+	      for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
 		{
 		  inTree->GetEntry(iEntry);
 	
 		  m12=mapBranches.GetDouble("m12");
 		  if (m12<80 || m12>100) continue;
 		  //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 && fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
-		  if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
+		  //if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
 		  //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 && mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
 		  prof->Fill( mapBranches.GetLongLong("timeStamp"), m12);
 		}
@@ -244,14 +281,14 @@ int main()
 	{
 	  for (int iBin=1; iBin<= vectProf[iProf]->GetXaxis()->GetNbins(); iBin++)
 	    {
-	      if (iBin%4!=0 && iBin!=1)  vectProf[iProf]->GetXaxis()->SetBinLabel( iBin, " " );
+	      if (iBin%4!=0 && iBin!=1 && iBin!=vectProf[iProf]->GetXaxis()->GetNbins())  vectProf[iProf]->GetXaxis()->SetBinLabel( iBin, " " );
 	    }
 	}
       vectOpt.push_back("xTitle= Date (day/month/year) ");
       vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
       vectOpt.push_back("rangeUserY= 0.998 1.01");
       vectOpt.push_back("line=1");
-
+      vectOpt.push_back("extension=root");
       DrawPlot(vectProf, name, vectOpt);
 
 
@@ -261,9 +298,9 @@ int main()
       c1->cd();
       histTmp =(TH1D*)c1->GetListOfPrimitives()->At(2);
 
-      ATLASLabel(0.22, 0.87-0.4, "Work in progress", 1, 0.06);
-      myText(0.22, 0.79-0.4, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 25.5 (2016) fb^{-1}", sizeText);
-      myText(0.43, 0.73-0.4, 1,"#eta < -1.55 (EC(C)-EC(C) events)", 0.05);
+      ATLASLabel(0.22, 0.87, "Work in progress", 1, 0.06);
+      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 33.9 (2016) fb^{-1}", sizeText);
+      myText(0.43, 0.73-0.4, 1,"#eta > 1.55 (EC(A)-EC(A) events)", 0.05);
       histTmp->SetLineColor(kRed);
       histTmp->SetMarkerColor(kRed);
       histTmp =(TH1D*)c1->GetListOfPrimitives()->At(0);
@@ -283,7 +320,7 @@ int main()
       line->Draw();
 
       
-      c1->SaveAs((savePath+"Mee_time_ECC.pdf").c_str());
+      c1->SaveAs((savePath+"Mee_timeECA.pdf").c_str());
       timeFile->Close();
       delete timeFile;
 
