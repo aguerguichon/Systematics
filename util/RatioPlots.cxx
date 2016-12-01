@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
   histMC->Draw("HIST");
   histData->Draw("SAME");
   
-  ATLASLabel(0.15, 0.8, "Preliminary", 1, sizeText);
+  ATLASLabel(0.15, 0.8, "Internal", 1, sizeText);
   if (year=="15") lumi="3.1";
   if (year=="16") lumi="33.9";
   myText(0.15, 0.7, 1,("#sqrt{s}=13 TeV, L = "+lumi+" fb^{-1}").c_str(), sizeText);

@@ -41,10 +41,12 @@ int main( int argc, char* argv[] ) {
 
   for ( unsigned int iScale =0; iScale < 2; iScale++ ) {
     string var = iScale ?  "_c" : "";
+    TFile *inFileICHEP= new TFile( ("/sps/atlas/c/cgoudet/Calibration/ScaleResults/160519/DataOff_13TeV_25ns"+var+".root").c_str() );
     TFile *inFile = new TFile( ("/sps/atlas/a/aguerguichon/Calibration/PreRec/Results/DataOff_13TeV_"+year+var+".root").c_str() );
     var = iScale ?  "c" : "alpha";
     TH1D* histScale = (TH1D*) inFile->Get( ("measScale_"+var).c_str() );
     TH1D* histSyst = (TH1D*) inFileSyst->Get( ("totSyst_"+var).c_str() );
+    TH1D* histICHEP= (TH1D*) inFileICHEP->Get( ("measScale_"+var).c_str() );
 
     if ( doReduce )  {
       const TArrayD *binning = histScale->GetXaxis()->GetXbins();
@@ -67,27 +69,34 @@ int main( int argc, char* argv[] ) {
     }
 
 
-    histScale->SetLineColor( kBlue );
-    histScale->SetMarkerColor(kBlue);
+    histScale->SetLineColor( kRed );
+    histScale->SetMarkerColor(kRed);
     histScale->SetMarkerStyle(20);
+
+    histICHEP->SetLineColor( kBlue );
+    histICHEP->SetMarkerColor( kBlue );
+    histICHEP->SetMarkerStyle(20);
+    
     histSyst->SetLineColor( kBlue );
     histSyst->SetLineWidth( 2.5 );
     histSyst->SetMarkerColor( kBlue );
     histSyst->SetMarkerStyle(20);
 
-    TH1D *histScaleTot = (TH1D*) histScale->Clone();
+    TH1D *histScaleTot = (TH1D*) histICHEP->Clone();
     histScaleTot->SetFillColor( kBlue-9 );
     TH1D* histStat = (TH1D*) histScale->Clone();
     histStat->ResetAttLine();
     histStat->ResetAttMarker();
     //    histStat->SetLineStyle(7);
     histStat->SetLineWidth(1.5);
-    histStat->SetLineColor( kBlack );
+    histStat->SetLineColor( kRed );
     for ( int iBin = 1; iBin<histStat->GetNbinsX()+1; iBin++ ) {
       histStat->SetBinContent( iBin, histScale->GetBinError( iBin ) );
       histStat->SetBinError( iBin, 0 );
-
-      histScaleTot->SetBinError( iBin, sqrt( histStat->GetBinContent(iBin)*histStat->GetBinContent(iBin)+ histSyst->GetBinContent(iBin)*histSyst->GetBinContent(iBin) ) );
+      //      histICHEP->SetBinError( iBin, histSyst->GetBinContent(iBin) );
+      histScaleTot->SetBinError( iBin, histSyst->GetBinContent(iBin) );
+      
+      //      histScaleTot->SetBinError( iBin, sqrt( histStat->GetBinContent(iBin)*histStat->GetBinContent(iBin)+ histSyst->GetBinContent(iBin)*histSyst->GetBinContent(iBin) ) );
       //      cout << histSyst->GetBinContent(iBin) << " " << histStat->GetBinContent(iBin) << " " << sqrt( histStat->GetBinContent(iBin)*histStat->GetBinContent(iBin)+ histSyst->GetBinContent(iBin)*histSyst->GetBinContent(iBin) ) << " " ;
       histSyst->SetBinContent( iBin, histScaleTot->GetBinError(iBin) );
     }
@@ -98,12 +107,12 @@ int main( int argc, char* argv[] ) {
     }    
 
     frameUp[2]   = iScale ? 0     : -0.03;
-    frameUp[3]   = iScale ? 0.045 : ( doReduce ? 0.06 : 0.1 );
+    frameUp[3]   = iScale ? 0.05 : ( doReduce ? 0.06 : 0.1 );
     frameDown[3] = iScale ? 7 : ( !doReduce ? 2e-2: 6 );
     frameDown[2] = ( !iScale && !doReduce ) ? 1e-4 : 0;
 
     TCanvas *canvas = new TCanvas();
-    TPad padUp( "padUp", "padUp", 0, 0.4, 1, 1 );
+    TPad padUp( "padUp", "padUp", 0, 0.3, 1, 1 );
     padUp.SetBottomMargin( 0.03 );
     padUp.Draw();
     padUp.cd();
@@ -112,7 +121,7 @@ int main( int argc, char* argv[] ) {
     dumUp->GetYaxis()->SetLabelSize( 0.06);
     dumUp->GetYaxis()->SetTitleOffset( 0.6);
     dumUp->GetXaxis()->SetLabelSize( 0 );
-    TPad padDown( "padDown", "padDown", 0, 0, 1, 0.4 );
+    TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
     padDown.SetTopMargin( 0.04 );
     padDown.SetBottomMargin( 0.2 );
     canvas->cd();
@@ -135,19 +144,23 @@ int main( int argc, char* argv[] ) {
     if ( frameDown[3] > 1 ) legendVar+= " (10^{-3})";
     dumDown->GetYaxis()->SetTitle( legendVar.c_str() );
 
-
-
     padUp.cd();
     histScaleTot->Draw("E2, same");
+    histICHEP->Draw("same");
     histScale->Draw("SAME");
     
     double x = 0.4;
-    double y = 0.7;
+    double y = 0.75;
     double s = 0.08;
     double lsize = 0.03;
-    myBoxText( x, y, histScaleTot->GetFillColor(), "", s, lsize ); 
+
     myLineText( x, y, histScale->GetLineColor(), histScale->GetLineStyle(), "", s, histScale->GetLineWidth(), lsize ); 
-    myMarkerText( x, y, histScale->GetMarkerColor(), histScale->GetMarkerStyle(), "Electrons from Z#rightarrowee", s, histScale->GetMarkerSize(), lsize ); 
+    myMarkerText( x, y, histScale->GetMarkerColor(), histScale->GetMarkerStyle(), "2016", s, histScale->GetMarkerSize(), lsize ); 
+
+    myBoxText( x, y-0.1, histScaleTot->GetFillColor(), "", s, lsize ); 
+    myLineText( x, y-0.1, histICHEP->GetLineColor(), histICHEP->GetLineStyle(), "", s, histICHEP->GetLineWidth(), lsize ); 
+    myMarkerText( x, y-0.1, histICHEP->GetMarkerColor(), histICHEP->GetMarkerStyle(), "ICHEP recommandations", s, histICHEP->GetMarkerSize(), lsize ); 
+
 
     padDown.cd();
     histSyst->Draw("same");
@@ -155,18 +168,18 @@ int main( int argc, char* argv[] ) {
     cout<<"bin"<<histStat->GetBinContent(5)<<endl;
     if ( !iScale && !doReduce ) padDown.SetLogy(1);
 
-    myLineText( 0.48, 0.85, histSyst->GetLineColor(), histSyst->GetLineStyle(), "Tot." ,0.11, histSyst->GetLineWidth() ); 
-    myLineText( 0.48, 0.75, histStat->GetLineColor(), histStat->GetLineStyle(), "Stat.", 0.11, histStat->GetLineWidth() ); 
+    myLineText( 0.48, 0.85, histSyst->GetLineColor(), histSyst->GetLineStyle(), "ICHEP Syst." ,0.11, histSyst->GetLineWidth() ); 
+    myLineText( 0.48, 0.75, histStat->GetLineColor(), histStat->GetLineStyle(), "2016 Stat.", 0.11, histStat->GetLineWidth() ); 
 
     canvas->cd();
     //    ATLASLabel( 0.16, 0.9, "Work in progress", 1, 0.06 );
     //myText( 0.5, 0.9, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
-    ATLASLabel( 0.16, 0.9, "Work in progress", 1, 0.05 );
-    myText( 0.6, 0.9, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.04 );
+    ATLASLabel( 0.16, 0.9, "Internal", 1, 0.06 );
+    myText( 0.5, 0.9, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
 
     string suffix = doReduce ? "_reduced" : "";
     suffix+=year;
-    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/ScaleFactors_"+var+suffix+".pdf").c_str() );
+    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/ScaleFactors_"+var+suffix+".eps").c_str() );
   }
 
 
