@@ -33,8 +33,7 @@ int main()
 {
 
   TH1::AddDirectory(kFALSE);
-
-  // string path= "/sps/atlas/a/aguerguichon/Calibration/DataxAOD/BackUp/";
+  SetAtlasStyle();
   string path= "/sps/atlas/a/aguerguichon/Calibration/DataxAOD/";
   string savePath= "/sps/atlas/a/aguerguichon/Calibration/Plots/";
   string fileName, pattern, name, yearHist;  
@@ -63,7 +62,7 @@ int main()
   vector <double> mean (2);
 
   bool isMuPU=0;
-  bool supMC=1;
+  bool supMC=0;
 
   if (isMuPU) name=savePath+"Mu";
   else name=savePath+"Time";
@@ -77,118 +76,120 @@ int main()
       pattern="Data"+vectYear[year]+"_13TeV_Zee_Lkh1";
       if (isMuPU) prof = new TProfile ("hprof", "", 50, 0, 50 );
       for (int iFile=0; iFile<50; iFile++) 
-	{
-	  fileName=path+pattern+"/"+pattern+"_"+to_string(iFile)+".root";
-	  inFile= TFile::Open(fileName.c_str());
+  	{
+  	  fileName=path+pattern+"/"+pattern+"_"+to_string(iFile)+".root";
+  	  inFile= TFile::Open(fileName.c_str());
 
-	  if (!inFile) break;
-	  cout<<"File: "<<fileName.c_str()<<endl;
-	  inTree= (TTree*) inFile->Get( (pattern+"_"+to_string(iFile)+"_selectionTree").c_str() );
+  	  if (!inFile) break;
+  	  cout<<"File: "<<fileName.c_str()<<endl;
+  	  inTree= (TTree*) inFile->Get( (pattern+"_"+to_string(iFile)+"_selectionTree").c_str() );
 
-	  MapBranches mapBranches;
-	  mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "muPU", "eta_calo_1", "eta_calo_2"});
+  	  MapBranches mapBranches;
+  	  mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "muPU", "eta_calo_1", "eta_calo_2"});
 
 
-	  for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
-	    {
-	      inTree->GetEntry(iEntry);
+  	  for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
+  	    {
+  	      inTree->GetEntry(iEntry);
 
-	      m12=mapBranches.GetDouble("m12");
-	      muPU=mapBranches.GetDouble("muPU");
-	      timeStamp=mapBranches.GetLongLong("timeStamp");
+  	      m12=mapBranches.GetDouble("m12");
+  	      muPU=mapBranches.GetDouble("muPU");
+  	      timeStamp=mapBranches.GetLongLong("timeStamp");
 
-	      if (m12<80 || m12>100) continue;
-	      if (year==0){meanZDistri+=m12; nZ2015++;}
-	      //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 && fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
-	      //if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
-	      //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 && mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
-	      mean[year]+=m12;
-	      counter++;
-	      if (isMuPU) prof->Fill(muPU, m12);
-	      else
-		{
-		  if (timeStamp < timeMin) timeMin=timeStamp;
-		  if (timeStamp > timeMax) timeMax=timeStamp;
-		}
+  	      if (m12<80 || m12>100) continue;
+  	      if (year==0){meanZDistri+=m12; nZ2015++;}
+  	      //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 && fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
+  	      //if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
+  	      //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 && mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
+  	      mean[year]+=m12;
+  	      counter++;
+  	      if (isMuPU) prof->Fill(muPU, m12);
+  	      else
+  		{
+  		  if (timeStamp < timeMin) timeMin=timeStamp;
+  		  if (timeStamp > timeMax) timeMax=timeStamp;
+  		}
 	  
-	    }
-	  inFile->Close();
-	}//end iFile
+  	    }
+  	  inFile->Close();
+  	}//end iFile
       if (year==0) meanZDistri/=nZ2015;
       mean[year]/=(counter*meanZDistri);
       cout<<"year: "<<year<<" mean: "<<mean[year]<<endl;
 
       if (isMuPU)
-	{
-	  prof->Scale(1/meanZDistri);
-	  if (year==0) 
-	    {
-	      prof->SetMarkerStyle(8);
-	      prof->SetMarkerSize(1.3);
-	    }
-	  else
-	    {
-	      prof->SetMarkerStyle(25);
-	      prof->SetMarkerSize(1.3);
-	    }
-	  vectProf.push_back(prof);
-	} 
+  	{
+  	  prof->Scale(1/meanZDistri);
+  	  if (year==0) 
+  	    {
+  	      prof->SetMarkerStyle(8);
+  	      prof->SetMarkerSize(1.3);
+  	    }
+  	  else
+  	    {
+  	      prof->SetMarkerStyle(25);
+  	      prof->SetMarkerSize(1.3);
+  	    }
+  	  vectProf.push_back(prof);
+  	} 
    }//end year
 
 
-  if (supMC )
-    {
-      counter=0;
-      meanZDistri=0;
-      prof = new TProfile ("hprofMC", "", 50, 0, 50 );
-      for (int iFile=0; iFile <50; iFile++)
-        {
-          fileName="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/MC15c_13TeV_Zee_Lkh1/MC15c\
-_13TeV_Zee_Lkh1_"+to_string(iFile)+".root";
-          inFile= TFile::Open(fileName.c_str());
+  // if (supMC)
+  //   {
+  //     counter=0;
+  //     meanZDistri=0;
+  //     prof = new TProfile ("hprofMC", "", 50, 0, 50 );
+  //     for (int iFile=0; iFile <1; iFile++)
+  //       {
+  //         fileName="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/MC15c_13TeV_Zee_Lkh1/MC15c_13TeV_Zee_Lkh1_"+to_string(iFile)+".root";
+  //         inFile= TFile::Open(fileName.c_str());
 
-          if (!inFile) break;
-          cout<<"File: "<<iFile<<" MC"<<endl;
-          inTree=0;
-          inTree= (TTree*) inFile->Get( ("MC15c_13TeV_Zee_Lkh1_"+to_string(iFile)+"_selection\
-Tree").c_str() );
+  //         if (!inFile) break;
+  //         cout<<"File: "<<iFile<<" MC"<<endl;
+  //         inTree=0;
+  //         inTree= (TTree*) inFile->Get( ("MC15c_13TeV_Zee_Lkh1_"+to_string(iFile)+"_selectionTree").c_str() );
 
-          MapBranches mapBranches;
-          mapBranches.LinkTreeBranches(inTree, 0, {"m12", "muPU"});
+  //         MapBranches mapBranches;
+  //         mapBranches.LinkTreeBranches(inTree, 0, {"m12", "muPU"});
 
-          for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
-            {
-              inTree->GetEntry(iEntry);
-              m12=mapBranches.GetDouble("m12");
-              muPU=mapBranches.GetDouble("muPU");
-              if (m12<80 || m12>100) continue;
-              meanZDistri+=m12;
-              counter++;
-              prof->Fill(muPU, m12);
-            }
-          inFile->Close();
-        }//end iFile                                                                          
-      meanZDistri/=counter;
-      prof->Scale(1/meanZDistri);
-      cout<<"meanZ mc: "<<meanZDistri<<endl;
-      vectProf.push_back(prof);
-      vectOpt.clear();
-      vectOpt.push_back("xTitle= #mu");
-      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(MC)>");
-      vectOpt.push_back("rangeUserY= 0.998 1.005");
-      vectOpt.push_back("rangeUserX= 5 46");
-      vectOpt.push_back("line=1");
-      vectOpt.push_back("extension=pdf");
-      DrawPlot(vectProf, "MC", vectOpt);
-      vectOpt.clear();
-    }
+  //         for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
+  //           {
+  //             inTree->GetEntry(iEntry);
+  //             m12=mapBranches.GetDouble("m12");
+  //             muPU=mapBranches.GetDouble("muPU");
+  //             if (m12<80 || m12>100) continue;
+  //             meanZDistri+=m12;
+  //             counter++;
+  // 	      if (muPU>=40) cout<<muPU<<endl;
+  //             prof->Fill(muPU, m12);
+  //           }
+  //         inFile->Close();
+  //       }//end iFile                                                                          
+  //     meanZDistri/=counter;
+  //     prof->Scale(1/meanZDistri);
+  //     //prof->Scale(0.01110283);
+  //     cout<<"meanZ mc: "<<meanZDistri<<endl;
+  //     vectProf.push_back(prof);
+  //     vectOpt.clear();
+  //     vectOpt.push_back("xTitle= #mu");
+  //     vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(MC)>");
+  //     vectOpt.push_back("latex=__ATLAS Internal");
+  //     vectOpt.push_back("latexOpt= 0.25 0.85");
+  //     //vectOpt.push_back("rangeUserY= 0.998 1.005");
+  //     vectOpt.push_back("rangeUserX= 5 46");
+  //     vectOpt.push_back("line=1");
+  //     vectOpt.push_back("extension=root");
+  //     DrawPlot(vectProf, "MC", vectOpt);
+  //     vectOpt.clear();
+  //   }
 
 
 
   if (isMuPU)
     {
       vectOpt.push_back("xTitle= #mu");
-      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2016)>");
+      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
       vectOpt.push_back("rangeUserY= 0.998 1.005");
       vectOpt.push_back("rangeUserX= 5 46");
       vectOpt.push_back("line=1");
@@ -204,6 +205,7 @@ Tree").c_str() );
       ATLASLabel(0.22, 0.87, "Work in progress", 1, 0.06);
       myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", sizeText);
       //      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
+      //myText(0.22, 0.79, 1,"2016 data", sizeText);
 
       histTmp=(TH1D*)c1->GetListOfPrimitives()->At(4);
       histTmp->SetMarkerStyle(25);
@@ -286,7 +288,7 @@ Tree").c_str() );
 	}
       vectOpt.push_back("xTitle= Date (day/month/year) ");
       vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
-      vectOpt.push_back("rangeUserY= 0.998 1.01");
+      vectOpt.push_back("rangeUserY= 0.998 1.004");
       vectOpt.push_back("line=1");
       vectOpt.push_back("extension=root");
       DrawPlot(vectProf, name, vectOpt);
@@ -300,7 +302,7 @@ Tree").c_str() );
 
       ATLASLabel(0.22, 0.87, "Work in progress", 1, 0.06);
       myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 33.9 (2016) fb^{-1}", sizeText);
-      myText(0.43, 0.73-0.4, 1,"#eta > 1.55 (EC(A)-EC(A) events)", 0.05);
+      //      myText(0.43, 0.73-0.4, 1,"#eta > 1.55 (EC(A)-EC(A) events)", 0.05);
       histTmp->SetLineColor(kRed);
       histTmp->SetMarkerColor(kRed);
       histTmp =(TH1D*)c1->GetListOfPrimitives()->At(0);
@@ -320,7 +322,7 @@ Tree").c_str() );
       line->Draw();
 
       
-      c1->SaveAs((savePath+"Mee_timeECA.pdf").c_str());
+      c1->SaveAs((savePath+"Mee_time.eps").c_str());
       timeFile->Close();
       delete timeFile;
 
