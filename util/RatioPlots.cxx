@@ -165,95 +165,208 @@ int main(int argc, char *argv[])
 
   // ============================RATIO PLOTS COSMETICS==========================//
 
-  TFile *fileSyst=TFile::Open((savePath+"ratio_"+year+".root").c_str());
-  systHist=(TH1D*)fileSyst->Get("systTot");
+  // TFile *fileSyst=TFile::Open((savePath+"ratio_"+year+".root").c_str());
+  // systHist=(TH1D*)fileSyst->Get("systTot");
 
-  inFile=TFile::Open((savePath+"MCDataRatio_20"+year+"_m12.root").c_str());
+  // inFile=TFile::Open((savePath+"MCDataRatio_20"+year+"_m12.root").c_str());
+  // cRatio=(TCanvas*)inFile->Get("c1");
+  // TH1D *histRatio=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(1)))->GetListOfPrimitives()->At(0);
+
+  // TH1D *histData=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(3);
+  // TH1D *histMC=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(2);
+
+  // TH1D *histNew=(TH1D*)histRatio->Clone();
+
+  // TCanvas *newC = new TCanvas("canvas", "");
+  
+  // TPad padUp( "padUp", "padUp", 0, 0.3, 1, 1 );
+  // padUp.SetTopMargin( 0.08 );
+  // padUp.SetBottomMargin( 0.02 );
+  // TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
+  // padDown.SetTopMargin( 0.05 );
+  // padDown.SetBottomMargin( 0.3 );
+
+  // newC->Divide(1, 2);
+  // padUp.Draw();
+  // newC->cd();
+  // padDown.Draw();
+  // padUp.cd();
+
+  
+  // histData->SetMarkerStyle(8);
+  // histData->SetMarkerSize(1.3);
+  // histData->SetMarkerColor(kBlue);
+  // histData->SetLineColor(kBlue);
+  // histMC->SetTitle("");
+  // histMC->GetYaxis()->SetTitle("Entries / GeV");
+  // histMC->GetYaxis()->SetTitleSize(0.06);
+  // histMC->GetYaxis()->SetTitleOffset(0.8);
+  // histMC->GetYaxis()->SetLabelSize(0.06);
+  // histMC->SetLineColor(kBlack);
+  // histMC->GetXaxis()->SetLabelSize(0);
+  // histMC->Scale(histData->Integral()/histMC->Integral());
+  // histMC->Draw("HIST");
+  // histData->Draw("SAME");
+  
+  // ATLASLabel(0.15, 0.8, "Internal", 1, sizeText);
+  // if (year=="15") lumi="3.1";
+  // if (year=="16") lumi="33.9";
+  // myText(0.15, 0.7, 1,("#sqrt{s}=13 TeV, L = "+lumi+" fb^{-1}").c_str(), sizeText);
+
+  // myText(0.15, 0.6, 1, ("20"+year+" data").c_str(), sizeText);
+    
+  // vectHist.push_back(histData);
+  // vectHist.push_back(histMC);
+
+  // for (unsigned int iHist=0; iHist<vectHist.size(); iHist++)
+  //   {
+  //     if (iHist==0) histName="Calibrated data";
+  //     else histName="Corrected MC";
+  //     myLineText( x, y-iHist*0.1, vectHist[iHist]->GetLineColor(), vectHist[iHist]->GetLineStyle(), "", sizeText, vectHist[iHist]->GetLineWidth(), lsize  ); 
+  //     myMarkerText( x, y-iHist*0.1, vectHist[iHist]->GetMarkerColor(), vectHist[iHist]->GetMarkerStyle(), histName.c_str(), sizeText, vectHist[iHist]->GetMarkerSize(), lsize);    }
+  
+  // padDown.cd();
+
+  // systHist->SetLineColorAlpha(0,0);
+  // systHist->SetMarkerColorAlpha(0,0);
+  // systHist->SetFillColor(kGreen-10);
+  // systHist->Draw("E2");
+
+  // systHist->SetStats(0);
+  // systHist->GetXaxis()->SetLabelSize(0.14);
+  // systHist->GetXaxis()->SetTitleSize(0.15);
+  // systHist->GetXaxis()->SetTitleOffset(0.92);
+  // systHist->GetXaxis()->SetTitle("m_{ee} [GeV]");
+
+  // systHist->GetYaxis()->SetTitle("(Data / MC) -1");
+  // systHist->GetYaxis()->SetTitleOffset(0.35);
+  // systHist->GetYaxis()->SetLabelSize(0.12);
+  // systHist->GetYaxis()->SetTitleSize(0.13);
+  // systHist->GetYaxis()->SetRangeUser(-0.052, 0.052);
+    
+  // TLine *line= new TLine(80, 0, 100, 0);
+  // line->SetLineColor( kBlack);
+  // line->SetLineStyle(3);
+  // line->Draw();
+
+  // histNew->Draw("SAME");
+ 
+
+  // newC->SaveAs((savePath+"Ratio_"+year+".pdf").c_str());
+    
+  // cout<<"Plots done."<<endl;
+  // return 0;
+
+
+
+  inFile=TFile::Open((savePath+"Ratio_m12.root").c_str());
   cRatio=(TCanvas*)inFile->Get("c1");
   TH1D *histRatio=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(1)))->GetListOfPrimitives()->At(0);
 
   TH1D *histData=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(3);
   TH1D *histMC=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(2);
 
-  TH1D *histNew=(TH1D*)histRatio->Clone();
+  cout<<"mean high: "<<histData->GetMean()<<" rms:  "<<histData->GetRMS()<<endl;
+  cout<<"mean low: "<<histMC->GetMean()<<" rms:  "<<histMC->GetRMS()<<endl;
 
   TCanvas *newC = new TCanvas("canvas", "");
   
-  TPad padUp( "padUp", "padUp", 0, 0.3, 1, 1 );
-  padUp.SetTopMargin( 0.08 );
-  padUp.SetBottomMargin( 0.02 );
-  TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
-  padDown.SetTopMargin( 0.05 );
-  padDown.SetBottomMargin( 0.3 );
+  TPad padUp( "padUp", "padUp", 0, 0.05, 1, 1 );
+  // padUp.SetTopMargin( 0.08 );
+  // padUp.SetBottomMargin( 0.02 );
+  // TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
+  //padDown.SetTopMargin( 0.05 );
+  //padDown.SetBottomMargin( 0.3 );
 
-  newC->Divide(1, 2);
+  //newC->Divide(1, 2);
   padUp.Draw();
   newC->cd();
-  padDown.Draw();
+  //  padDown.Draw();
   padUp.cd();
 
   
   histData->SetMarkerStyle(8);
-  histData->SetMarkerSize(1.3);
+  histData->SetMarkerSize(1);
   histData->SetMarkerColor(kBlue);
   histData->SetLineColor(kBlue);
   histMC->SetTitle("");
-  histMC->GetYaxis()->SetTitle("Entries / GeV");
+  histMC->GetYaxis()->SetTitle("Fraction of events");
   histMC->GetYaxis()->SetTitleSize(0.06);
-  histMC->GetYaxis()->SetTitleOffset(0.8);
-  histMC->GetYaxis()->SetLabelSize(0.06);
-  histMC->SetLineColor(kBlack);
+  histMC->GetYaxis()->SetTitleOffset(0.9);
+  histMC->GetYaxis()->SetLabelSize(0.05);
+  histMC->SetMarkerStyle(25);
+  histMC->SetMarkerSize(1);
+  histMC->SetMarkerColor(kRed);
+  histMC->SetLineColor(kRed);
   histMC->GetXaxis()->SetLabelSize(0);
   histMC->Scale(histData->Integral()/histMC->Integral());
-  histMC->Draw("HIST");
+  histMC->GetYaxis()->SetRangeUser(0, 0.1);
+  histMC->GetXaxis()->SetLabelSize(0.05);
+  histMC->GetXaxis()->SetTitleSize(0.06);
+  histMC->GetXaxis()->SetTitleOffset(0.9);
+  histMC->GetXaxis()->SetTitle("m_{ee} [GeV]");
+  histMC->Draw();
+  // histData->GetYaxis()->SetRangeUser(0, 0.1);
+  // histData->GetXaxis()->SetLabelSize(0.14);
+  // histData->GetXaxis()->SetTitleSize(0.15);
+  // histData->GetXaxis()->SetTitleOffset(0.92);
+  // histData->GetXaxis()->SetTitle("m_{ee} [GeV]");
+  histData->GetYaxis()->SetTitle("Fraction of events");
   histData->Draw("SAME");
-  
-  ATLASLabel(0.15, 0.8, "Internal", 1, sizeText);
-  if (year=="15") lumi="3.1";
-  if (year=="16") lumi="33.9";
-  myText(0.15, 0.7, 1,("#sqrt{s}=13 TeV, L = "+lumi+" fb^{-1}").c_str(), sizeText);
 
-  myText(0.15, 0.6, 1, ("20"+year+" data").c_str(), sizeText);
+    x=0.62;
+  lsize=0.02;
+  y=0.87;
+    sizeText=0.055;
+  
+  ATLASLabel(0.15, 0.85, "Internal", 1, sizeText);
+  myText(0.15, 0.75, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
+
+  myText(0.15, 0.65, 1, "2016 calibrated data", sizeText);
+  //  myText(0.15, 0.7, 1, "MC", sizeText);
     
   vectHist.push_back(histData);
   vectHist.push_back(histMC);
 
   for (unsigned int iHist=0; iHist<vectHist.size(); iHist++)
     {
-      if (iHist==0) histName="Calibrated data";
-      else histName="Corrected MC";
+      if (iHist==0) histName="High #mu (30 < #mu  <35)";
+      else histName="Low #mu (15 < #mu  <20)";
       myLineText( x, y-iHist*0.1, vectHist[iHist]->GetLineColor(), vectHist[iHist]->GetLineStyle(), "", sizeText, vectHist[iHist]->GetLineWidth(), lsize  ); 
       myMarkerText( x, y-iHist*0.1, vectHist[iHist]->GetMarkerColor(), vectHist[iHist]->GetMarkerStyle(), histName.c_str(), sizeText, vectHist[iHist]->GetMarkerSize(), lsize);    }
   
-  padDown.cd();
+  // padDown.cd();
 
-  systHist->SetLineColorAlpha(0,0);
-  systHist->SetMarkerColorAlpha(0,0);
-  systHist->SetFillColor(kGreen-10);
-  systHist->Draw("E2");
 
-  systHist->SetStats(0);
-  systHist->GetXaxis()->SetLabelSize(0.14);
-  systHist->GetXaxis()->SetTitleSize(0.15);
-  systHist->GetXaxis()->SetTitleOffset(0.92);
-  systHist->GetXaxis()->SetTitle("m_{ee} [GeV]");
+  // histRatio->SetStats(0);
+  // histRatio->GetXaxis()->SetLabelSize(0.14);
+  // histRatio->GetXaxis()->SetTitleSize(0.15);
+  // histRatio->GetXaxis()->SetTitleOffset(0.92);
+  // histRatio->GetXaxis()->SetTitle("m_{ee} [GeV]");
 
-  systHist->GetYaxis()->SetTitle("(Data / MC) -1");
-  systHist->GetYaxis()->SetTitleOffset(0.35);
-  systHist->GetYaxis()->SetLabelSize(0.12);
-  systHist->GetYaxis()->SetTitleSize(0.13);
-  systHist->GetYaxis()->SetRangeUser(-0.052, 0.052);
+  // histRatio->GetYaxis()->SetTitle("(High / Low) -1");
+  // histRatio->GetYaxis()->SetTitleOffset(0.35);
+  // histRatio->GetYaxis()->SetLabelSize(0.12);
+  // histRatio->GetYaxis()->SetTitleSize(0.13);
+  // histRatio->GetYaxis()->SetRangeUser(-0.052, 0.072);
     
-  TLine *line= new TLine(80, 0, 100, 0);
-  line->SetLineColor( kBlack);
-  line->SetLineStyle(3);
-  line->Draw();
+  // histRatio->Draw();
 
-  histNew->Draw("SAME");
- 
+  //   TLine *line= new TLine(80, 0, 100, 0);
+  // line->SetLineColor( kBlack);
+  // line->SetLineStyle(3);
+  // line->Draw();
 
-  newC->SaveAs((savePath+"Ratio_"+year+".pdf").c_str());
+
+  newC->SaveAs((savePath+"Ratio_mu.pdf").c_str());
+  newC->SaveAs((savePath+"Ratio_mu.eps").c_str());
+  newC->SaveAs((savePath+"Ratio_mu.png").c_str());
     
   cout<<"Plots done."<<endl;
   return 0;
+
+
+
+
+
 }

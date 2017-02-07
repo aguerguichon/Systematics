@@ -19,6 +19,10 @@ class BiasAnalysis
 public:
   BiasAnalysis(std::string configFileName);
   ~BiasAnalysis();
+  /* - Read files, link tree branches to local variables and sorting variables according to the ones selected.                                                                               
+    - Fill the map m_mapHist with unique histogramms for each combination of all possible values of each variable.                                                                          
+   - Fill m_mapCij and m_mapErrCij for the inversion procedure
+ */ 
   void SelectVariables (std::vector <std::string> dataFiles);
   void MeasureBias (std::string outFileName, std::string outRootFileName);
   void MakeBiasPlots (std::string csvFileName, std::string path, std::string latexFileName, std::string comment=" ");
@@ -53,6 +57,7 @@ public:
   //std::string m_outFileName;
 
   unsigned int m_nHist;
+  unsigned int m_nBins;
   unsigned int m_methodStats;
   unsigned int m_checkDistri;
   

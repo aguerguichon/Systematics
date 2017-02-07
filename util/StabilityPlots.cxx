@@ -38,6 +38,7 @@ int main()
   string savePath= "/sps/atlas/a/aguerguichon/Calibration/Plots/";
   string fileName, pattern, name, yearHist;  
   vector <string> vectYear (2);
+  vector <string> vectOpt;
   vector <TH1*> vectProf; 
   vector <TH1*> vectHist; 
   TFile *inFile=0;
@@ -49,8 +50,7 @@ int main()
   unsigned long long timeMin=1e11;
   unsigned int timeMax=0;
   double meanZDistri=0;
-  double m12, muPU, timeStamp; 
-  vector <string> vectOpt;
+  double m12, muPU, timeStamp, weight; 
   double counter;
   double nZ2015=0;
 
@@ -62,7 +62,7 @@ int main()
   vector <double> mean (2);
 
   bool isMuPU=0;
-  bool supMC=0;
+  DrawOptions drawOpt;
 
   if (isMuPU) name=savePath+"Mu";
   else name=savePath+"Time";
@@ -73,7 +73,7 @@ int main()
     {
       counter=0;
       mean[year]=0;
-      pattern="Data"+vectYear[year]+"_13TeV_Zee_Lkh1";
+      pattern="Data"+vectYear[year]+"_13TeV_Zee_noGain_Lkh1";
       if (isMuPU) prof = new TProfile ("hprof", "", 50, 0, 50 );
       for (int iFile=0; iFile<50; iFile++) 
   	{
@@ -98,9 +98,10 @@ int main()
 
   	      if (m12<80 || m12>100) continue;
   	      if (year==0){meanZDistri+=m12; nZ2015++;}
-  	      //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 && fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
-  	      //if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
-  	      //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 && mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
+  	      //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 || fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
+  	      //if ( mapBranches.GetDouble("eta_calo_1") <1.55 || mapBranches.GetDouble("eta_calo_2") <1.55) continue;
+  	      if ( mapBranches.GetDouble("eta_calo_1") > -1.55 || mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
+	      //    cout<<mapBranches.GetDouble("eta_calo_1")<<" "<<mapBranches.GetDouble("eta_calo_2")<<endl;
   	      mean[year]+=m12;
   	      counter++;
   	      if (isMuPU) prof->Fill(muPU, m12);
@@ -135,57 +136,6 @@ int main()
    }//end year
 
 
-  // if (supMC)
-  //   {
-  //     counter=0;
-  //     meanZDistri=0;
-  //     prof = new TProfile ("hprofMC", "", 50, 0, 50 );
-  //     for (int iFile=0; iFile <1; iFile++)
-  //       {
-  //         fileName="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/MC15c_13TeV_Zee_Lkh1/MC15c_13TeV_Zee_Lkh1_"+to_string(iFile)+".root";
-  //         inFile= TFile::Open(fileName.c_str());
-
-  //         if (!inFile) break;
-  //         cout<<"File: "<<iFile<<" MC"<<endl;
-  //         inTree=0;
-  //         inTree= (TTree*) inFile->Get( ("MC15c_13TeV_Zee_Lkh1_"+to_string(iFile)+"_selectionTree").c_str() );
-
-  //         MapBranches mapBranches;
-  //         mapBranches.LinkTreeBranches(inTree, 0, {"m12", "muPU"});
-
-  //         for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
-  //           {
-  //             inTree->GetEntry(iEntry);
-  //             m12=mapBranches.GetDouble("m12");
-  //             muPU=mapBranches.GetDouble("muPU");
-  //             if (m12<80 || m12>100) continue;
-  //             meanZDistri+=m12;
-  //             counter++;
-  // 	      if (muPU>=40) cout<<muPU<<endl;
-  //             prof->Fill(muPU, m12);
-  //           }
-  //         inFile->Close();
-  //       }//end iFile                                                                          
-  //     meanZDistri/=counter;
-  //     prof->Scale(1/meanZDistri);
-  //     //prof->Scale(0.01110283);
-  //     cout<<"meanZ mc: "<<meanZDistri<<endl;
-  //     vectProf.push_back(prof);
-  //     vectOpt.clear();
-  //     vectOpt.push_back("xTitle= #mu");
-  //     vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(MC)>");
-  //     vectOpt.push_back("latex=__ATLAS Internal");
-  //     vectOpt.push_back("latexOpt= 0.25 0.85");
-  //     //vectOpt.push_back("rangeUserY= 0.998 1.005");
-  //     vectOpt.push_back("rangeUserX= 5 46");
-  //     vectOpt.push_back("line=1");
-  //     vectOpt.push_back("extension=root");
-  //     DrawPlot(vectProf, "MC", vectOpt);
-  //     vectOpt.clear();
-  //   }
-
-
-
   if (isMuPU)
     {
       vectOpt.push_back("xTitle= #mu");
@@ -195,7 +145,10 @@ int main()
       vectOpt.push_back("line=1");
       vectOpt.push_back("drawStyle=4");
       vectOpt.push_back("extension=root");
-      DrawPlot(vectProf, name, vectOpt);
+      drawOpt.FillOptions(vectOpt);
+      drawOpt.AddOption("outName", name);
+      drawOpt.Draw(vectProf);
+      //      DrawPlot(vectProf, name, vectOpt);
     
       //Cosmetics
       TFile *muFile=TFile::Open((savePath+"Mu.root").c_str());
@@ -229,7 +182,7 @@ int main()
       histTmp->GetXaxis()->SetTitleSize(0.5);
       histTmp->GetXaxis()->SetTitleOffset(1.20);
       histTmp->GetXaxis()->SetLabelSize(0.05);
-
+      c1->Draw();
       c1->SaveAs((savePath+"Mee_mu.pdf").c_str());
 
       muFile->Close();
@@ -258,9 +211,9 @@ int main()
 	
 		  m12=mapBranches.GetDouble("m12");
 		  if (m12<80 || m12>100) continue;
-		  //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 && fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
-		  //if ( mapBranches.GetDouble("eta_calo_1") <1.55 && mapBranches.GetDouble("eta_calo_2") <1.55) continue;
-		  //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 && mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
+		  //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 || fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
+		  //if ( mapBranches.GetDouble("eta_calo_1") <1.55 || mapBranches.GetDouble("eta_calo_2") <1.55) continue;
+		  if ( mapBranches.GetDouble("eta_calo_1") > -1.55 || mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
 		  prof->Fill( mapBranches.GetLongLong("timeStamp"), m12);
 		}
 	    }//end iFile
@@ -288,10 +241,13 @@ int main()
 	}
       vectOpt.push_back("xTitle= Date (day/month/year) ");
       vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
-      vectOpt.push_back("rangeUserY= 0.998 1.004");
+      //      vectOpt.push_back("rangeUserY= 0.998 1.004");
       vectOpt.push_back("line=1");
       vectOpt.push_back("extension=root");
-      DrawPlot(vectProf, name, vectOpt);
+      drawOpt.FillOptions(vectOpt);
+      drawOpt.AddOption("outName", name);
+      drawOpt.Draw(vectProf);
+      //DrawPlot(vectProf, name, vectOpt);
 
 
       //Cosmetics
@@ -302,7 +258,7 @@ int main()
 
       ATLASLabel(0.22, 0.87, "Internal", 1, 0.06);
       myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 33.9 (2016) fb^{-1}", sizeText);
-      //      myText(0.43, 0.73-0.4, 1,"#eta > 1.55 (EC(A)-EC(A) events)", 0.05);
+      myText(0.43, 0.73-0.4, 1,"|#eta| < 1.37 (EC(C)-EC(C) events)", 0.05);
       histTmp->SetLineColor(kRed);
       histTmp->SetMarkerColor(kRed);
       histTmp =(TH1D*)c1->GetListOfPrimitives()->At(0);
@@ -322,7 +278,7 @@ int main()
       line->Draw();
 
       
-      c1->SaveAs((savePath+"Mee_time.pdf").c_str());
+      c1->SaveAs((savePath+"Mee_time_ECC.root").c_str());
       timeFile->Close();
       delete timeFile;
 

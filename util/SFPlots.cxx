@@ -18,10 +18,11 @@ using std::ifstream;
 
 int main( int argc, char* argv[] ) {
   po::options_description desc("LikelihoodProfiel Usage");
-
+  string year;
   //define all options in the program
   desc.add_options()
     ("help", "Display this help message")
+    ("year", po::value<string>(&year)->default_value("15"))
     ;
 
   // Create a map vm that contains options and all arguments of options       
@@ -35,19 +36,20 @@ int main( int argc, char* argv[] ) {
   vector<double> frameUp = { -2.7, 2.7, 0, 0};
   vector<double> frameDown = { frameUp[0], frameUp[1], 0, 0};
   TFile *inFileSyst = new TFile( "/sps/atlas/c/cgoudet/Calibration/ScaleResults/160519/EnergyScaleFactors.root" );
+  //TFile *totSystFile = new TFile("/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170124/EnergyScaleFactors.root");
   TH1::AddDirectory(kFALSE);
   bool doReduce = 0;
-  string year="16";
 
   for ( unsigned int iScale =0; iScale < 2; iScale++ ) {
     string var = iScale ?  "_c" : "";
     TFile *inFileICHEP= new TFile( ("/sps/atlas/c/cgoudet/Calibration/ScaleResults/160519/DataOff_13TeV_25ns"+var+".root").c_str() );
-    TFile *inFile = new TFile( ("/sps/atlas/a/aguerguichon/Calibration/PreRec/Results/DataOff_13TeV_"+year+var+".root").c_str() );
+    var = iScale? "ScalesOff_1516_c" : "AlphaOff_"+year;
+    TFile *inFile = new TFile( ("/sps/atlas/a/aguerguichon/Calibration/PreRec/Results/"+var+".root").c_str() );
     var = iScale ?  "c" : "alpha";
     TH1D* histScale = (TH1D*) inFile->Get( ("measScale_"+var).c_str() );
     TH1D* histSyst = (TH1D*) inFileSyst->Get( ("totSyst_"+var).c_str() );
     TH1D* histICHEP= (TH1D*) inFileICHEP->Get( ("measScale_"+var).c_str() );
-
+    //    TH1D* totSyst=(TH1D*) totSystFile->Get( ("totSyst_"+var).c_str() );
     if ( doReduce )  {
       const TArrayD *binning = histScale->GetXaxis()->GetXbins();
       vector<double> vectBin;
@@ -150,12 +152,12 @@ int main( int argc, char* argv[] ) {
     histScale->Draw("SAME");
     
     double x = 0.4;
-    double y = 0.75;
+    double y = 0.7;
     double s = 0.08;
     double lsize = 0.03;
 
     myLineText( x, y, histScale->GetLineColor(), histScale->GetLineStyle(), "", s, histScale->GetLineWidth(), lsize ); 
-    myMarkerText( x, y, histScale->GetMarkerColor(), histScale->GetMarkerStyle(), "2016", s, histScale->GetMarkerSize(), lsize ); 
+    myMarkerText( x, y, histScale->GetMarkerColor(), histScale->GetMarkerStyle(), "2017 recommandations", s, histScale->GetMarkerSize(), lsize ); 
 
     myBoxText( x, y-0.1, histScaleTot->GetFillColor(), "", s, lsize ); 
     myLineText( x, y-0.1, histICHEP->GetLineColor(), histICHEP->GetLineStyle(), "", s, histICHEP->GetLineWidth(), lsize ); 
@@ -165,26 +167,28 @@ int main( int argc, char* argv[] ) {
     padDown.cd();
     histSyst->Draw("same");
     histStat->Draw("same");
-    cout<<"bin"<<histStat->GetBinContent(5)<<endl;
     if ( !iScale && !doReduce ) padDown.SetLogy(1);
 
     myLineText( 0.48, 0.85, histSyst->GetLineColor(), histSyst->GetLineStyle(), "ICHEP Syst." ,0.11, histSyst->GetLineWidth() ); 
-    myLineText( 0.48, 0.75, histStat->GetLineColor(), histStat->GetLineStyle(), "2016 Stat.", 0.11, histStat->GetLineWidth() ); 
+    myLineText( 0.48, 0.75, histStat->GetLineColor(), histStat->GetLineStyle(), "Stat.", 0.11, histStat->GetLineWidth() ); 
 
     canvas->cd();
     //    ATLASLabel( 0.16, 0.9, "Work in progress", 1, 0.06 );
     //myText( 0.5, 0.9, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
-    ATLASLabel( 0.16, 0.9, "Internal", 1, 0.06 );
-    myText( 0.5, 0.9, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
+    ATLASLabel( 0.16, 0.9, "Work in progress", 1, 0.06 );
+    if (iScale) myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", 0.05 );
+    if (!iScale){
+      if (year=="15") myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 3.1 fb^{-1}", 0.05 );
+      else myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
+    }
 
     string suffix = doReduce ? "_reduced" : "";
-    suffix+=year;
-    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/ScaleFactors_"+var+suffix+".eps").c_str() );
-  }
+    if (!iScale)suffix+=year;
+    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/ScaleFactors_"+var+suffix+".pdf").c_str() );
+  }//end iScale
 
 
 
-  //Comparison Run1/run2
 
 
   return 0;
