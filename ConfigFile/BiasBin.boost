@@ -7,6 +7,6 @@ variablesBias=iBin
 
 selectTree= scalesTree
 
-variablesStats=0
-
 methodStats=1
+
+nBins=6

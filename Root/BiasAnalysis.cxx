@@ -70,11 +70,11 @@ BiasAnalysis::BiasAnalysis(string configFileName)
     ("selectTree", po::value<string>(&m_inTreeName), "")
     /*ConfigurationsCTree or scalesTree
      */    
-    ("checkDistri", po::value<unsigned int>(&m_checkDistri)->default_value(0),"")
-    /*0= bias study
-      1= errSigma distribution
-    */
-
+    // ("checkDistri", po::value<unsigned int>(&m_checkDistri)->default_value(0),"")
+    // /*0= bias study
+    //   1= errSigma distribution
+    // */
+    
     ("nBins", po::value<unsigned int>(&m_nBins),"")
     
     ;
@@ -86,7 +86,6 @@ BiasAnalysis::BiasAnalysis(string configFileName)
 
   cout<<"Configuration file "<<configFileName<<" loaded."<<endl;
   cout<<m_methodStats<<endl;
-  m_nHist=0;
 }
 
 
@@ -96,304 +95,204 @@ BiasAnalysis::~BiasAnalysis()
 {
   m_variablesBias.clear();
   m_variablesStats.clear();
-  m_histNames.clear();
-  m_bias.clear();
-  m_errBias.clear();
-
 
   m_mapHist.clear();
-  m_mapXMin.clear();
-  m_mapXMax.clear();
-  m_mapInput.clear();
-  m_mapHistPosition.clear();
   m_mapSumX.clear();
   m_mapSumXM.clear();
-  m_mapNEff.clear();
-  m_mapBias.clear();
-  m_mapDataSet.clear();
-  m_mapGauss.clear();
+  m_mapStatHist.clear();
+  m_mapRooVar.clear();
+  m_mapRooDataSet.clear();
+  m_mapRooGauss.clear();
   m_mapCij.clear();
   m_mapErrCij.clear();
   m_mapCi.clear();
   m_mapErrCi.clear();
-
  
   m_inTreeName.clear();
   
-  m_nHist=-999;
   m_methodStats=-999;
-  m_checkDistri=-999;
-
+  m_nBins=-999;
   
-  for (unsigned int iHist=0; iHist<m_nHist; iHist++){
-    for(unsigned int iVar=0; iVar<m_variablesStats.size()+2; iVar++){
-      m_histStats[iHist][iVar]=-999;
-    }
-  }
-
-  
-  cout<<"Cleaning ok"<<endl;
-
+  cout<<"Attributes cleaned."<<endl;
 }
 
 //===================================================
 
 void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 {
-  cout<<"\t BiasAnalysis::SelectVariables"<<endl;
+  cout<<"BiasAnalysis::SelectVariables"<<endl;
 
-  //  map <string, double> mapMean;
-  map <string, RooArgSet*> mapArgSet;
-   
+  map <string, RooArgSet*> mapArgSet; 
   TTree *inTree=0;
   TFile *inFile=0;
-
   double bias{0};
   string histName, rooName, errSigma, value;
 
   TH1::AddDirectory(kFALSE);
 
-  for (unsigned int iFile=0; iFile <dataFiles.size(); iFile++) { 
+  for ( unsigned int iFile=0; iFile <dataFiles.size(); iFile++ ) { 
     inFile= TFile::Open(dataFiles[iFile].c_str());
-    if (!inFile) throw invalid_argument( "BiasAnalysis::SelectVariables: Unknown input file "+dataFiles[iFile] );
+    if ( !inFile ) throw invalid_argument( "BiasAnalysis::SelectVariables: Unknown input file "+dataFiles[iFile] );
 
     inTree = (TTree*) inFile->Get(m_inTreeName.c_str());  
     if ( !inTree ) throw runtime_error( "BiasAnalysis::SelectVariables: "+m_inTreeName + " in " + dataFiles[iFile] + " does not exist." );
     MapBranches mapBranches; 
     mapBranches.LinkTreeBranches(inTree);
-     
-    for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++) 	{
-      inTree->GetEntry(iEntry);
-      histName ="";
-	  
-      if (mapBranches.GetUnsigned("nBins")!=m_nBins) continue;
 
-      bias = mapBranches.GetDouble("sigma")-mapBranches.GetDouble("inputC");
+    for ( unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++ ) {
+      inTree->GetEntry(iEntry);
+      histName =""; 
+      if ( mapBranches.GetUnsigned( "nBins" )!=m_nBins ) continue;
+      bias = mapBranches.GetDouble( "sigma" )-mapBranches.GetDouble( "inputC" );
 	  
       //Combine all possible values of each variable
-      for (unsigned int iVar =0; iVar < m_variablesBias.size(); iVar++){
-	value=mapBranches.GetLabel(m_variablesBias[iVar]);
+      for ( unsigned int iVar =0; iVar < m_variablesBias.size(); iVar++ ){
+	value=mapBranches.GetLabel( m_variablesBias[iVar] );
 
-	if (iVar == m_variablesBias.size()-1) {
+	if ( iVar == m_variablesBias.size()-1 ) {
 	  histName+= m_variablesBias[iVar]+"_"+value; 
-	
-	  if(m_mapHist.count(histName)==0){
-	    m_mapHist[histName]=new TH1D(histName.c_str(), "", 2000, -0.1, 0.1);
+       	  if ( !m_mapHist.count(histName) ) {
+	    m_mapHist[histName] = new TH1D( histName.c_str(), "", 2000, -0.1, 0.1 );
 	    m_mapHist[histName]->Sumw2();
-	    //mapMean.insert(pair <string, double> (histName, m_mapSumX[histName]/m_mapNEff[histName]));
-	    //m_mapSumXM.insert(pair<string, double> (histName, pow (bias-mapMean[histName], 2)) );
-	    m_histNames.push_back(histName);
 
 	    //Create elements needed to fit using RooFit
 	    rooName= "bias_"+histName;
-	    m_mapBias[histName]= new RooRealVar(rooName.c_str(), "C^{meas}-C^{input}", -0.1, 0.1);
+	    m_mapRooVar[histName] = new RooRealVar( rooName.c_str(), "C^{meas}-C^{input}", -0.1, 0.1 );
 	    rooName= "set_"+histName;
-	    mapArgSet.insert(pair<string, RooArgSet*>(histName, new RooArgSet(rooName.c_str())));
+	    mapArgSet[histName] = new RooArgSet( rooName.c_str() );
 	    rooName= "data_"+histName;
-	    m_mapDataSet.insert(pair<string, RooDataSet*> (histName, new RooDataSet(rooName.c_str(), "data", *mapArgSet[histName])));
+	    m_mapRooDataSet[histName] = new RooDataSet( rooName.c_str(), "data", *mapArgSet[histName] );
 	  }
 
-	  m_mapHist[histName]->Fill(bias);
-	  //m_mapSumXM[histName]+= pow (bias-mapMean[histName], 2);
-	  m_mapBias[histName]->setVal(bias);
-	  mapArgSet[histName]->add(*m_mapBias[histName]);
-	  m_mapDataSet[histName]->add(*mapArgSet[histName]);
+	  m_mapHist[histName]->Fill( bias );
+	  m_mapRooVar[histName]->setVal( bias );
+	  mapArgSet[histName]->add( *m_mapRooVar[histName] );
+	  m_mapRooDataSet[histName]->add( *mapArgSet[histName] );
 	}
-	
-	histName += m_variablesBias[iVar]+"_"+value+"_";
-	      
+	histName += m_variablesBias[iVar]+"_"+value+"_";   
       }//end iVar (1st loop)
-
     }//end iEntry (1st loop)
 
     inFile->Close(); //close file and delete tree
     delete inFile;
     
   }//end iFile
-  
-  cout << "End of selection."<<endl;
+
+  cout<<"BiasAnalysis::SelectVariables Done"<<endl;
+
   return;
 }
 
 
-      // //Fill maps for inversion procedure
-      // if (m_inTreeName=="ConfigurationsCTree") {
-      // 	toyNumber= mapBranches.GetULongLong("toyNumber");
-      // 	i=mapBranches.GetUnsigned("iConf");
-      // 	j=mapBranches.GetUnsigned("jConf");
-      // 	if (m_mapCij.count(toyNumber)==0)	{
-      // 	  m_mapCij.insert( pair<unsigned long long, TMatrixD>(toyNumber, TMatrixD(mapBranches.GetUnsigned("nBins"), mapBranches.GetUnsigned("nBins"))) );
-      // 	  m_mapErrCij.insert(pair<unsigned long long, TMatrixD>(toyNumber, TMatrixD(mapBranches.GetUnsigned("nBins"), mapBranches.GetUnsigned("nBins"))) );
-      // 	  m_mapInput.insert(pair<unsigned long long, double>(toyNumber, mapBranches.GetDouble("inputC")));
+//====================================================
+vector<double> BiasAnalysis::GetBiasStat( TH1* hist, string histName, unsigned int method)
+{
+  cout<<"BiasAnalysis::GetBiasStat"<<endl;
+  double mean{0}, errMean{0}, rms{0};
+  vector<double> vectStat;
+  unsigned int nBins=hist->GetNbinsX();
+  double xMin = hist->GetXaxis()->GetBinCenter(2);
+  double xMax = hist->GetXaxis()->GetBinCenter(nBins-1);
+    
+  switch (method) {
+    // case 0: {//compute mean and rms
+    // 	mean= m_mapSumX[histName]/m_mapNEff[histName];
+    // 	rms= sqrt( m_mapSumXM[histName]/m_mapNEff[histName] );
+    // 	errMean= rms/sqrt(m_mapNEff[histName]);
+    // 	break;
+    // }
 
-      // 	  m_mapCij[toyNumber][i][j]=mapBranches.GetDouble("sigma");
-      // 	  m_mapCij[toyNumber][j][i]=mapBranches.GetDouble("sigma");
-      // 	  m_mapErrCij[toyNumber][i][j]=mapBranches.GetDouble("errSigma");
-      // 	  m_mapErrCij[toyNumber][j][i]=mapBranches.GetDouble("errSigma");
-      // 	}
-      // 	else {
-      // 	  m_mapCij[toyNumber][i][j]=mapBranches.GetDouble("sigma");
-      // 	  m_mapCij[toyNumber][j][i]=mapBranches.GetDouble("sigma");
-      // 	  m_mapErrCij[toyNumber][i][j]=mapBranches.GetDouble("errSigma");
-      // 	  m_mapErrCij[toyNumber][j][i]=mapBranches.GetDouble("errSigma");
-      // 	}
-	      
-      // 	if ( i==(mapBranches.GetUnsigned("nBins")-1) && j==(mapBranches.GetUnsigned("nBins")-1) ) {
-      // 	  for (unsigned int iRow=0; iRow<=i; iRow++) {
-      // 	    for(unsigned int iCol=0; iCol<=i; iCol++) {
-      // 	      if ( m_mapCij[toyNumber][iCol][iRow]==0 && m_mapErrCij[toyNumber][iCol][iRow]==0 ) m_mapErrCij[toyNumber][iCol][iRow]=100;
-      // 	    }
-      // 	  }
-      // 	}
-      // }
+  case 1:{//get mean and rms from histogram
+    mean= hist->GetMean();
+    rms= hist->GetRMS();
+    errMean= rms/sqrt( hist->GetEntries() );
+    break;
+  }
+
+  case 2: {//get from gaussian fit
+    TF1 *f0 = new TF1("f0", "gaus", xMin, xMax);
+    hist->Fit("f0","R");
+    mean = hist->GetFunction("f0")->GetParameter(1);
+    rms = hist->GetFunction("f0")->GetParameter(2);
+    if (mean-1.5*rms>=xMin) xMin= mean-1.5*rms;
+    if (mean+1.5*rms<=xMax && mean+1.5*rms>xMin) xMax= mean+1.5*rms;
+    TF1 *f1= new TF1("f1", "gaus", xMin, xMax);
+    hist->Fit("f1","R");
+      
+    mean = hist->GetFunction("f1")->GetParameter(1);
+    rms = hist->GetFunction("f1")->GetParameter(2);
+    errMean = hist->GetFunction("f1")->GetParError(1); 
+    
+    delete f1; f1=0;
+    delete f0; f0=0;
+    break;
+  }
+  case 3: {//gauss RooFit
+    RooRealVar* meanFit = new RooRealVar("meanFit", "mean", -1, 1);
+    RooRealVar* sigmaFit= new RooRealVar("sigmaFit", "sigma",0, 1);
+    m_mapRooGauss[histName]= new RooGaussian("gauss", "gauss", *m_mapRooVar[histName], *meanFit, *sigmaFit);    
+    m_mapRooGauss[histName]->fitTo( *m_mapRooDataSet[histName], Range( xMin+(xMax-xMin)*0.02, xMax ) );
+    rms= sigmaFit->getValV();
+    mean= meanFit->getValV();
+    m_mapRooGauss[histName]->fitTo( *m_mapRooDataSet[histName], Range( mean-1.5*rms, mean+1.5*rms) );
+    delete meanFit;
+    delete sigmaFit;
+    break;
+  }
+  }//end switch
+
+  vectStat.push_back(mean);
+  vectStat.push_back(rms);
+  vectStat.push_back(errMean);
+  cout<<"BiasAnalysis::GetBiasStat Done"<<endl;
+  return vectStat;
+}
 
 
 
-// //=====================================================
-// //For each histogram, fill the 2D multi_array with:
-// // - 1st dim: histogram
-// // - 2nd dim: mean (for a given method), mean error, rms...
-// //Fill a csv file with those values.
+//=====================================================
 
-// void BiasAnalysis::MeasureBias( string outFileName, string outRootFileName)
-// {
-//   m_histStats.resize(extents[m_nHist][m_variablesStats.size()+2]);
-//   //m_outFileName=outFileName;
-//   unsigned int iHist=0;
-//   unsigned int nBins; 
-//   unsigned int skip=0;
-//   double mean=0.;
-//   double errMean=0.;
-//   double rms=0; 
-//   double xMin=0.;
-//   double xMax=0.;
-//   string histName;
-//   char *token;
-//   //  vector <double> mean100k, mean2M, mean1M, errMean100k, errMean2M, errMean1M, errBias1M, errBias100k;
+void BiasAnalysis::SaveBiasInfo( string outName )
+{
+  cout<<"BiasAnalysis::SaveBiasInfo"<<endl;
+  vector <string> vectInfo;
+  vector <double> vectStat;
+  unsigned int skip{0};
+  string histName;
+  TH1D *hist=0;
+  TFile *outRootFile = new TFile( (outName+".root").c_str(), "RECREATE" ); 
+  ofstream outputFile( (outName+".csv").c_str(), ios::out );
 
-//   TFile *outRootFile = new TFile(outRootFileName.c_str(), "RECREATE"); 
+  for ( auto it=m_mapHist.begin(); it!=m_mapHist.end(); it++ )  {
+    histName= it->first;
+    hist=it->second;
+    hist->Write();
 
-//   ofstream outputFile(outFileName, ios::out);
-//   if (outputFile == 0) {cout<<"Error while opening outputFile"<<endl; return ;}
- 
-//   map <string, unsigned int>::iterator it=m_mapHistPosition.begin();
-//   while(it != m_mapHistPosition.end())
-//     {
-//       histName= it->first;
-//       iHist= it->second;
-   
-//       for (unsigned int iVar=0; iVar<m_variablesStats.size(); iVar++)
-//   	{
-// 	  switch (m_methodStats)
-// 	    {
+    //writing the csv file
+    if (!skip) {
+      outputFile<<"HistogramName"<<" "<<"NumberEntries"<<" ";
+      for ( unsigned int iVarBias=0; iVarBias<m_variablesBias.size(); iVarBias++ ) outputFile<<m_variablesBias[iVarBias]<<" ";
+      outputFile<<"Mean"<<" "<<"RMS"<<" "<<"ErrorMean"<<"\n";
+      }
+    skip++;
+    outputFile<<histName<<" "<<hist->GetEntries()<<" ";
+    cout<<histName<<endl;
+    ParseVector(histName, vectInfo, '_');
+    for (unsigned int i=1; i<vectInfo.size(); i+=2) outputFile<<vectInfo[i]<<" ";
+    vectInfo.clear();
 
-// 	    case 0://compute mean and rms
-// 	      {
-// 		if (m_variablesStats[iVar] == 0) 
-// 		  {
-// 		    mean= m_mapSumX[histName]/m_mapNEff[histName];
-// 		    rms= sqrt( m_mapSumXM[histName]/m_mapNEff[histName] );
-// 		    errMean= rms/sqrt(m_mapNEff[histName]);
-// 		    m_mapHist[histName]->Write();
-// 		  }
-// 		break;
-// 	      }
+    vectStat=GetBiasStat( hist, histName, m_methodStats );
+    for (unsigned int i=0; i<vectStat.size(); i++) outputFile<<vectStat[i]<<" ";
+    outputFile<<"\n";
+    m_mapStatHist[histName]=vectStat;
+  }//end iteration over histograms
 
-// 	    case 1://get mean and rms from histogram
-// 	      {
-// 		if (m_variablesStats[iVar]== 0)
-// 		  {
-// 		    mean= m_mapHist[histName]->GetMean();
-// 		    rms= m_mapHist[histName]->GetRMS();
-// 		    errMean= rms/sqrt(m_mapNEff[histName]);
-// 		    m_mapHist[histName]->Write();
-// 		  } 
-// 		break;
-// 	      }
-
-// 	    case 2://get from gaussian fit
-// 	      {
-// 		nBins = m_mapHist[histName]->GetNbinsX();
-		
-// 		xMin = m_mapHist[histName]->GetXaxis()->GetBinCenter(2);
-// 		xMax = m_mapHist[histName]->GetXaxis()->GetBinCenter(nBins-1);
-// 		TF1 *f0 = new TF1("f0", "gaus", xMin, xMax);
-// 		m_mapHist[histName]->Fit("f0","R");
-// 		mean = m_mapHist[histName]->GetFunction("f0")->GetParameter(1);
-// 		rms = m_mapHist[histName]->GetFunction("f0")->GetParameter(2);
-// 		if (mean-1.5*rms>=xMin) xMin= mean-1.5*rms;
-// 		if (mean+1.5*rms<=xMax && mean+1.5*rms>xMin) xMax= mean+1.5*rms;
-// 		TF1 *f1= new TF1("f1", "gaus", xMin, xMax);
-// 		m_mapHist[histName]->Fit("f1","R");
-		
-// 		if (m_variablesStats[iVar]== 0)
-// 		  {
-// 		    mean = m_mapHist[histName]->GetFunction("f1")->GetParameter(1);
-// 		    rms = m_mapHist[histName]->GetFunction("f1")->GetParameter(2);
-// 		    errMean = m_mapHist[histName]->GetFunction("f1")->GetParError(1); 
-// 		  }
-// 		m_mapHist[histName]->Write();
-// 		delete f1; f1=0;
-// 		delete f0; f0=0;
-// 		break;
-// 	      }
-// 	    case 3://gauss RooFit
-// 	      {
-// 		RooRealVar* meanFit = new RooRealVar("meanFit", "mean", -1, 1);
-// 		RooRealVar* sigmaFit= new RooRealVar("sigmaFit", "sigma",0, 1);
-// 		m_mapGauss.insert(pair<string, RooGaussian*>(histName, new RooGaussian("gauss", "gauss", *m_mapBias[histName], *meanFit, *sigmaFit) ));
-
-// 		m_mapGauss[histName]->fitTo(*m_mapDataSet[histName], Range( m_mapXMin[histName]+(m_mapXMax[histName]-m_mapXMin[histName])*0.02, m_mapXMax[histName] ));
-// 		rms= sigmaFit->getValV();
-// 		mean= meanFit->getValV();
-// 		m_mapGauss[histName]->fitTo(*m_mapDataSet[histName], Range(mean-1.5*rms, mean+1.5*rms));
-// 		m_mapHist[histName]->Write();
-// 		delete meanFit;
-// 		delete sigmaFit;
-// 		break;
-// 	      }
-// 	    }//end switch
-
-// 	  m_histStats[iHist][0]=mean;
-// 	  m_histStats[iHist][1]=rms;
-// 	  m_histStats[iHist][2]=errMean;
-//   	}//end iVar
-
-//       //writing the csv file
-//       if (skip==0) 
-// 	{
-// 	  outputFile<<"HistogramName"<<" "<<"HistogramIndex"<<" "<<"NumberEntries"<<" ";
-// 	  for (unsigned int iVarBias=0; iVarBias<m_variablesBias.size(); iVarBias++)
-// 	    {
-// 	      outputFile<<m_variablesBias[iVarBias]<<" ";
-// 	    }
-// 	  outputFile<<"Mean"<<" "<<"RMS"<<" "<<"ErrorMean"<<"\n";
-// 	}
-
-//       outputFile<<histName<<" "<<iHist<<" "<<m_mapNEff[histName]<<" ";
-//       token = strtok((char*)histName.c_str(), "_");
-//       skip=1;
-//       while(token !=NULL)
-//       	{
-// 	  //int iVarBias=0;
-// 	  if (skip>m_variablesBias.size()*2) break;
-//       	  if (skip%2==0) outputFile<<token<<" ";
-// 	  skip++;
-// 	  token=strtok(NULL, "_");
-//       	}
-//       outputFile<<mean<<" "<<rms<<" "<<errMean<<"\n";
-
-//       //next histogram
-//       it++;
-//     }//end iteration over histograms (while loop)
-
-//   cout<<"csv file "<<outFileName <<" written."<<endl;
-  
-//   cout<<"End of bias measure."<<endl;
-//   outRootFile->Close();
-//   delete outRootFile;
-//   return;
-// }
+  outRootFile->Close();
+  delete outRootFile;
+  delete hist;
+  cout<<"BiasAnalysis::SaveBiasInfo Done"<<endl;
+  return;
+}
 
 
 
@@ -475,7 +374,7 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
       
 //       vectOptDraw.push_back("extendUp= 0.4");
       
-//       if (m_methodStats == 3)  DrawPlot(m_mapBias[histName], {m_mapDataSet[histName], m_mapGauss[histName]}, path+histName,{vectOptDraw} );
+//       if (m_methodStats == 3)  DrawPlot(m_mapRooVar[histName], {m_mapRooDataSet[histName], m_mapRooGauss[histName]}, path+histName,{vectOptDraw} );
       
 //       switch (m_checkDistri)
 // 	{
@@ -578,13 +477,13 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 // 	  //csvConf<<"toyNumber: "<<toyNumber<<" iBin: "<<iBin<<" sigma: "<<resultMatrix[iBin][0]<<endl;
 // 	  if (mapXMin.count(iBin)==0 && mapXMax.count(iBin)==0) 
 // 	    {
-// 	      mapXMin.insert(pair<int, double>(iBin, resultMatrix[iBin][0]-m_mapInput[toyNumber]));
-// 	      mapXMax.insert(pair<int, double>(iBin, resultMatrix[iBin][0]-m_mapInput[toyNumber]));
+// 	      mapXMin.insert(pair<int, double>(iBin, resultMatrix[iBin][0]-mapInput[toyNumber]));
+// 	      mapXMax.insert(pair<int, double>(iBin, resultMatrix[iBin][0]-mapInput[toyNumber]));
 // 	    }
 // 	  else
 // 	    {
-// 	      if (resultMatrix[iBin][0]-m_mapInput[toyNumber]<mapXMin[iBin]) mapXMin[iBin]=resultMatrix[iBin][0]-m_mapInput[toyNumber];
-// 	      if (resultMatrix[iBin][0]-m_mapInput[toyNumber]>mapXMax[iBin]) mapXMax[iBin]=resultMatrix[iBin][0]-m_mapInput[toyNumber];
+// 	      if (resultMatrix[iBin][0]-mapInput[toyNumber]<mapXMin[iBin]) mapXMin[iBin]=resultMatrix[iBin][0]-mapInput[toyNumber];
+// 	      if (resultMatrix[iBin][0]-mapInput[toyNumber]>mapXMax[iBin]) mapXMax[iBin]=resultMatrix[iBin][0]-mapInput[toyNumber];
 // 	    }
 // 	}
 
@@ -601,12 +500,12 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 // 	    {
 // 	      histName= TString::Format("biasBin_%u",iBin);
 // 	      mapHistBias.insert( pair<int, TH1D*> (iBin, new TH1D(histName,"", 100 , mapXMin[iBin], mapXMax[iBin])));
-// 	      mapHistBias[iBin]->Fill(m_mapCi[toyNumber][iBin][0]-m_mapInput[toyNumber]);
+// 	      mapHistBias[iBin]->Fill(m_mapCi[toyNumber][iBin][0]-mapInput[toyNumber]);
 // 	      mapHistBias[iBin]->SetBinError(mapHistBias[iBin]->GetXaxis()->FindBin(m_mapCi[toyNumber][iBin][0]), m_mapErrCi[toyNumber][iBin][0]);
 // 	    }
 // 	  else 
 // 	    {
-// 	      mapHistBias[iBin]->Fill(m_mapCi[toyNumber][iBin][0]-m_mapInput[toyNumber]);
+// 	      mapHistBias[iBin]->Fill(m_mapCi[toyNumber][iBin][0]-mapInput[toyNumber]);
 // 	      mapHistBias[iBin]->SetBinError(mapHistBias[iBin]->GetXaxis()->FindBin(m_mapCi[toyNumber][iBin][0]), m_mapErrCi[toyNumber][iBin][0]);
 // 	    }
 // 	  if (toyNumber==m_mapCi.size()-1) 
@@ -778,3 +677,49 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 //   csvFile.close();
 //   return;
 // }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      // //Fill maps for inversion procedure
+      // if (m_inTreeName=="ConfigurationsCTree") {
+      // 	toyNumber= mapBranches.GetULongLong("toyNumber");
+      // 	i=mapBranches.GetUnsigned("iConf");
+      // 	j=mapBranches.GetUnsigned("jConf");
+      // 	if (m_mapCij.count(toyNumber)==0)	{
+      // 	  m_mapCij.insert( pair<unsigned long long, TMatrixD>(toyNumber, TMatrixD(mapBranches.GetUnsigned("nBins"), mapBranches.GetUnsigned("nBins"))) );
+      // 	  m_mapErrCij.insert(pair<unsigned long long, TMatrixD>(toyNumber, TMatrixD(mapBranches.GetUnsigned("nBins"), mapBranches.GetUnsigned("nBins"))) );
+      // 	  mapInput.insert(pair<unsigned long long, double>(toyNumber, mapBranches.GetDouble("inputC")));
+
+      // 	  m_mapCij[toyNumber][i][j]=mapBranches.GetDouble("sigma");
+      // 	  m_mapCij[toyNumber][j][i]=mapBranches.GetDouble("sigma");
+      // 	  m_mapErrCij[toyNumber][i][j]=mapBranches.GetDouble("errSigma");
+      // 	  m_mapErrCij[toyNumber][j][i]=mapBranches.GetDouble("errSigma");
+      // 	}
+      // 	else {
+      // 	  m_mapCij[toyNumber][i][j]=mapBranches.GetDouble("sigma");
+      // 	  m_mapCij[toyNumber][j][i]=mapBranches.GetDouble("sigma");
+      // 	  m_mapErrCij[toyNumber][i][j]=mapBranches.GetDouble("errSigma");
+      // 	  m_mapErrCij[toyNumber][j][i]=mapBranches.GetDouble("errSigma");
+      // 	}
+	      
+      // 	if ( i==(mapBranches.GetUnsigned("nBins")-1) && j==(mapBranches.GetUnsigned("nBins")-1) ) {
+      // 	  for (unsigned int iRow=0; iRow<=i; iRow++) {
+      // 	    for(unsigned int iCol=0; iCol<=i; iCol++) {
+      // 	      if ( m_mapCij[toyNumber][iCol][iRow]==0 && m_mapErrCij[toyNumber][iCol][iRow]==0 ) m_mapErrCij[toyNumber][iCol][iRow]=100;
+      // 	    }
+      // 	  }
+      // 	}
+      // }

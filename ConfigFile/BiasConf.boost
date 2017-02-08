@@ -8,6 +8,6 @@ variablesBias=jConf
 
 selectTree= ConfigurationsCTree
 
-variablesStats=0
+nBins=6
 
 methodStats=1
