@@ -53,22 +53,21 @@ int main(int argc, char *argv[])
   BiasAnalysis BA("Systematics/ConfigFile/Bias"+BinOrConf+".boost");
 
   string path= "/sps/atlas/a/aguerguichon/Calibration/Bias/";
-  //string latexFileName= "Bias"+BinOrConf+"_test";
-  string latexFileName= "Test";
+  //string fileName= "Bias"+BinOrConf+"_test";
+  string fileName= "Test";
 
-  string csvFile= path+"Stats/"+latexFileName+".csv";
 
   BA.SelectVariables(dataFiles);
-  BA.SaveBiasInfo(path+"RootFiles/"+latexFileName);
+  BA.SaveBiasInfo(path+"RootFiles/"+fileName);
 
   path+= "Plots/";
   
-  //  BA.MakeBiasPlots(csvFile, path, latexFileName, "Bootstrap avec remise (mode0)");
+  BA.MakeBiasPlots(path, fileName, "Test");
 
-  // string commandLine = "mv ./"+latexFileName+".pdf "+path;
-  // system ( commandLine.c_str() );
-  // commandLine = "rm "+latexFileName+"*";
-  // system ( commandLine.c_str() );
+  string commandLine = "mv ./"+fileName+".pdf "+path;
+  system ( commandLine.c_str() );
+  commandLine = "rm "+fileName+"*";
+  system ( commandLine.c_str() );
   
   // path= "/sps/atlas/a/aguerguichon/Calibration/Bias/Inversion/";
   // BA.InvertCijMatrix(path, 1);

@@ -34,14 +34,16 @@ public:
 
   std::vector<double> GetBiasStat( TH1* hist, std::string histName, unsigned int method=1);
 
-  void MakeBiasPlots (std::string csvFileName, std::string path, std::string latexFileName, std::string comment=" ");
+  void MakeBiasPlots (std::string path, std::string latexFileName, std::string comment=" ");
 
+  void MakePdf (std::string latexFileName, std::vector <std::string> vectHistNames ,std::string comment=" ");
 
   void InvertCijMatrix (std::string path, unsigned int inversionProcedure=11);
 
 
   void MakeCompStatPlot(std::string csvFileName, std::string plotName, unsigned int input, bool isConf=1);
 
+  void RemoveExtremalBins(TH1D* &hist);
 
  private:
   std::vector <std::string> m_variablesBias;
@@ -59,10 +61,9 @@ public:
   std::map <unsigned long long, TMatrixD> m_mapCi;
   std::map <unsigned long long, TMatrixD> m_mapErrCi; 
 
-
   std::string m_inTreeName;
 
   unsigned int m_nBins;
   unsigned int m_methodStats;
-
+  double m_minX, m_maxX;
 };

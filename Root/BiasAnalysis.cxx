@@ -26,10 +26,12 @@
 
 #include "Systematics/BiasAnalysis.h"
 #include "PlotFunctions/DrawPlot.h"
+#include "PlotFunctions/DrawOptions.h"
 #include "PlotFunctions/SideFunctionsTpp.h"
 #include "PlotFunctions/SideFunctions.h"
 #include "PlotFunctions/MapBranches.h"
 #include "PlotFunctions/InvertMatrix.h"
+#include "PlotFunctions/Foncteurs.h"
 
 using namespace ChrisLib;
 using namespace std;
@@ -85,7 +87,6 @@ BiasAnalysis::BiasAnalysis(string configFileName)
   po::notify(vm);  
 
   cout<<"Configuration file "<<configFileName<<" loaded."<<endl;
-  cout<<m_methodStats<<endl;
 }
 
 
@@ -112,7 +113,9 @@ BiasAnalysis::~BiasAnalysis()
   
   m_methodStats=-999;
   m_nBins=-999;
-  
+  m_maxX=-999;
+  m_minX=-999;
+
   cout<<"Attributes cleaned."<<endl;
 }
 
@@ -148,7 +151,9 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
       //Combine all possible values of each variable
       for ( unsigned int iVar =0; iVar < m_variablesBias.size(); iVar++ ){
 	value=mapBranches.GetLabel( m_variablesBias[iVar] );
-
+	
+	if (value.find("0.")!=string::npos) value=to_string( stoi(ReplaceString("0.", "")(value)) );
+	
 	if ( iVar == m_variablesBias.size()-1 ) {
 	  histName+= m_variablesBias[iVar]+"_"+value; 
        	  if ( !m_mapHist.count(histName) ) {
@@ -163,18 +168,17 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 	    rooName= "data_"+histName;
 	    m_mapRooDataSet[histName] = new RooDataSet( rooName.c_str(), "data", *mapArgSet[histName] );
 	  }
-
 	  m_mapHist[histName]->Fill( bias );
 	  m_mapRooVar[histName]->setVal( bias );
 	  mapArgSet[histName]->add( *m_mapRooVar[histName] );
 	  m_mapRooDataSet[histName]->add( *mapArgSet[histName] );
 	}
 	histName += m_variablesBias[iVar]+"_"+value+"_";   
-      }//end iVar (1st loop)
-    }//end iEntry (1st loop)
+      }//end iVar
+    }//end iEntry
 
     inFile->Close(); //close file and delete tree
-    delete inFile;
+    delete inFile; inFile=0;
     
   }//end iFile
 
@@ -183,17 +187,36 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
   return;
 }
 
+//====================================================
+void BiasAnalysis::RemoveExtremalBins(TH1D* &hist)
+{
+  unsigned int lowBin = 1;
+  unsigned int upBin = hist->GetNbinsX();
+  m_minX=hist->GetXaxis()->GetXmin();
+  m_maxX=hist->GetXaxis()->GetXmax();
+
+  while ( hist->GetBinContent( lowBin ) == 0 && lowBin!=upBin ) lowBin++;
+  while ( hist->GetBinContent( upBin ) ==0 && lowBin!=upBin ) upBin--;
+  if ( lowBin != upBin ) {
+    m_minX = hist->GetXaxis()->GetBinLowEdge( lowBin );
+    m_maxX = hist->GetXaxis()->GetBinUpEdge( upBin );
+  }
+  hist->GetXaxis()->SetRangeUser( m_minX, m_maxX );
+  cout<<"BiasAnalysis::RemoveExtremalBins Done"<<endl;
+  return;
+}
 
 //====================================================
 vector<double> BiasAnalysis::GetBiasStat( TH1* hist, string histName, unsigned int method)
 {
   cout<<"BiasAnalysis::GetBiasStat"<<endl;
+
   double mean{0}, errMean{0}, rms{0};
   vector<double> vectStat;
   unsigned int nBins=hist->GetNbinsX();
   double xMin = hist->GetXaxis()->GetBinCenter(2);
   double xMax = hist->GetXaxis()->GetBinCenter(nBins-1);
-    
+  
   switch (method) {
     // case 0: {//compute mean and rms
     // 	mean= m_mapSumX[histName]/m_mapNEff[histName];
@@ -235,8 +258,8 @@ vector<double> BiasAnalysis::GetBiasStat( TH1* hist, string histName, unsigned i
     rms= sigmaFit->getValV();
     mean= meanFit->getValV();
     m_mapRooGauss[histName]->fitTo( *m_mapRooDataSet[histName], Range( mean-1.5*rms, mean+1.5*rms) );
-    delete meanFit;
-    delete sigmaFit;
+    delete meanFit; meanFit=0;
+    delete sigmaFit; sigmaFit=0;
     break;
   }
   }//end switch
@@ -248,8 +271,6 @@ vector<double> BiasAnalysis::GetBiasStat( TH1* hist, string histName, unsigned i
   return vectStat;
 }
 
-
-
 //=====================================================
 
 void BiasAnalysis::SaveBiasInfo( string outName )
@@ -259,14 +280,13 @@ void BiasAnalysis::SaveBiasInfo( string outName )
   vector <double> vectStat;
   unsigned int skip{0};
   string histName;
-  TH1D *hist=0;
   TFile *outRootFile = new TFile( (outName+".root").c_str(), "RECREATE" ); 
   ofstream outputFile( (outName+".csv").c_str(), ios::out );
 
-  for ( auto it=m_mapHist.begin(); it!=m_mapHist.end(); it++ )  {
+  for ( auto it=m_mapHist.begin(); it!=m_mapHist.end(); ++it )  {
     histName= it->first;
-    hist=it->second;
-    hist->Write();
+    RemoveExtremalBins(it->second);
+    it->second->Write();
 
     //writing the csv file
     if (!skip) {
@@ -275,159 +295,111 @@ void BiasAnalysis::SaveBiasInfo( string outName )
       outputFile<<"Mean"<<" "<<"RMS"<<" "<<"ErrorMean"<<"\n";
       }
     skip++;
-    outputFile<<histName<<" "<<hist->GetEntries()<<" ";
-    cout<<histName<<endl;
     ParseVector(histName, vectInfo, '_');
     for (unsigned int i=1; i<vectInfo.size(); i+=2) outputFile<<vectInfo[i]<<" ";
     vectInfo.clear();
 
-    vectStat=GetBiasStat( hist, histName, m_methodStats );
+    vectStat=GetBiasStat( it->second, histName, m_methodStats );
     for (unsigned int i=0; i<vectStat.size(); i++) outputFile<<vectStat[i]<<" ";
     outputFile<<"\n";
     m_mapStatHist[histName]=vectStat;
+    outputFile<<histName<<" "<<it->second->GetEntries()<<" ";
   }//end iteration over histograms
 
   outRootFile->Close();
-  delete outRootFile;
-  delete hist;
+  delete outRootFile; outRootFile=0;
+  //  delete hist; hist=0;
   cout<<"BiasAnalysis::SaveBiasInfo Done"<<endl;
+
   return;
 }
 
 
+//==================================================
+//Draw plots and save them into a pdf file
 
+void BiasAnalysis::MakeBiasPlots(string path, string latexFileName, string comment)
+{
+  cout<<"BiasAnalysis::MakeDistriPlots"<<endl;
+  vector <string> vectStatNames, vectOpt, vectTmp, vectHistNames;
+  string histName;
+  string legLatex, line="";
 
+  vectStatNames.push_back("Mean");
+  vectStatNames.push_back("RMS");
+  vectStatNames.push_back("Error mean");
 
-// //==================================================
-// //Draw plots and save them into a pdf file
+  for ( auto it=m_mapHist.begin(); it!=m_mapHist.end(); ++it )  {
+    histName = it->first;
+    RemoveExtremalBins(it->second);
+    DrawOptions drawOpt;
 
-// void BiasAnalysis::MakeBiasPlots(string csvFileName, string path, string latexFileName, string comment)
-// {
-//   cout<<"\t BiasAnalysis::MakeBiasPlots"<<endl;
+    for (unsigned int iStat=0; iStat<vectStatNames.size(); iStat++) { //Quote the mean, rms, errMean of the hist on the plot
+      legLatex= "latex="+ vectStatNames[iStat]+ ": " + TString::Format("%.3e", m_mapStatHist[histName][iStat]);
+      vectOpt.push_back(legLatex.c_str());
+      legLatex= "latexOpt= 0.65 "+ TString::Format("%.3f", 0.9-iStat*0.05);
+      vectOpt.push_back(legLatex.c_str());
+    }
 
-//   //Prepare latex file to store plots 
-//   fstream stream;
-//   string latexTitle = "Bias study";
-//   latexFileName+=".tex";
-//   stream.open( latexFileName.c_str(), fstream::out | fstream::trunc );
-//   WriteLatexHeader( stream, latexTitle , "Antinea Guerguichon" );
+    ParseVector(histName, vectTmp, '_');
+    for (unsigned int iInfo=0; iInfo<vectTmp.size()-1; iInfo+=2){
+      legLatex= "latex="+vectTmp[iInfo]+": "+vectTmp[iInfo+1];
+      vectOpt.push_back(legLatex.c_str());
+      legLatex= "latexOpt= 0.15 "+ TString::Format("%f", 0.9-iInfo*0.025);;
+      vectOpt.push_back(legLatex.c_str());
+    }
 
-//   //Draw plots of bias distribution
-//   //Options to draw the histograms (cf DrawPlot.cxx)
-//   vector <string> vectStatNames, vectOptDraw, vectLineContent, vectTmp;
-//   vectStatNames.push_back("Mean");
-//   vectStatNames.push_back("RMS");
-//   vectStatNames.push_back("Error mean");
+    vectOpt.push_back("rangeUserX="+to_string(m_minX)+" "+to_string(m_maxX));
+    vectOpt.push_back("yTitle=#Events");
+    vectOpt.push_back("extendUp= 0.4");
+    vectOpt.push_back("xTitle=C^{meas}-C^{input}");
+    vector <TH1*> vectHistTmp={it->second};
+    
+    if (m_methodStats == 3)  DrawPlot(m_mapRooVar[histName], {m_mapRooDataSet[histName], m_mapRooGauss[histName]}, path+histName,{vectOpt} );
+    else {
+      drawOpt.FillOptions(vectOpt); 
+      drawOpt.AddOption("outName", path+histName);
+      drawOpt.Draw( vectHistTmp );
+    }       
+    vectHistNames.push_back(path+histName);
+    vectTmp.clear();
+    vectOpt.clear();
+    vectHistTmp.clear();
+  }
 
-//   string histName;
-//   unsigned int iHist=0;
-//   unsigned int iLine=0;
-//   TString statVal, statPos;
-//   string legLatex, line;
-//   map <unsigned int, vector<string>> mapColumnContent;
+  MakePdf(path+latexFileName, vectHistNames, comment);
+  cout<<"BiasAnalysis::MakeDistriPlots Done"<<endl;
+  return;
+}
 
-//   //Reading the csv file
-//   ifstream csvFile(csvFileName, ios::in);
-//   if (!csvFile) {cout<<"Cannot open "<<csvFileName<< " for reading."<<endl; return;}
-  
-//   while (getline(csvFile, line))
-//     {
-//       vectLineContent.push_back(line);
-//       ParseVector(vectLineContent[iLine], vectTmp);
-//       mapColumnContent.insert(pair<unsigned int, vector<string>>(iLine, vectTmp));
-//       vectTmp.clear();
-//       iLine++;
-//     }
+//==============================================
+void BiasAnalysis::MakePdf(string latexFileName, vector<string> vectHistNames, string comment)
+{
+  fstream stream;
+  latexFileName+=".tex";
+  stream.open( latexFileName.c_str(), fstream::out | fstream::trunc );
+  WriteLatexHeader( stream, "Bias study" , "Antinea Guerguichon" );
 
-//   for (unsigned int iName=0; iName<m_histNames.size(); iName++)
-//     {
-//       histName = m_histNames[iName];
-//       m_histNames[iName]=path+m_histNames[iName];
+  stream <<comment <<"\\newline"<<endl;
+  stream << "\\indent Method to get stats: "<<m_methodStats<<"\\newline  "<< endl;  
+  stream << "\\indent Tree: "<< m_inTreeName<<"\\newline  "<<endl;
+  stream << "\\indent Variables: ";
+  for (unsigned int iVar=0; iVar< m_variablesBias.size(); iVar++)    {
+    if (iVar == m_variablesBias.size()-1) stream<<m_variablesBias[iVar] <<"\\newline  ";
+    else  stream  << m_variablesBias[iVar] <<", ";
+  }
 
-//       for (unsigned int i=0; i<vectStatNames.size(); i++)
-//       	{
-//       	  statVal= TString::Format("%.3e", m_histStats[iHist][i]);
-// 	  legLatex= "latex="+ vectStatNames[i]+ ": " +statVal;
-//       	  vectOptDraw.push_back(legLatex.c_str());
-// 	  statPos= TString::Format("%.3f", 0.9-i*0.05);
-// 	  legLatex= "latexOpt= 0.65 "+ statPos;
-// 	  vectOptDraw.push_back(legLatex.c_str());
-//       	}
-      
-//       vectOptDraw.push_back("yTitle=#Events");
-      	
-//       for (unsigned int indexMap=1; indexMap<mapColumnContent.size(); indexMap++)
-// 	{
-// 	  for (unsigned int iVar=0; iVar<m_variablesBias.size();iVar++)
-// 	    {
-// 	      if (histName==mapColumnContent[indexMap][0])
-// 		{
-// 		  legLatex= "latex="+m_variablesBias[iVar]+": "+mapColumnContent[indexMap][iVar+3];
-// 		  vectOptDraw.push_back(legLatex.c_str());
-// 		  statPos= TString::Format("%f", 0.9-iVar*0.05);
-// 		  legLatex= "latexOpt= 0.15 "+ statPos;
-// 		  vectOptDraw.push_back(legLatex.c_str());
-// 		}
-// 	    }
-// 	}
+  WriteLatexMinipage( stream, vectHistNames, 2);
+  stream << "\\end{document}" << endl;
+  string commandLine = "pdflatex  -interaction=batchmode " + latexFileName;
+  system( commandLine.c_str() );
+  system( commandLine.c_str() );
+  system( commandLine.c_str() );
 
-      
-//       vectOptDraw.push_back("extendUp= 0.4");
-      
-//       if (m_methodStats == 3)  DrawPlot(m_mapRooVar[histName], {m_mapRooDataSet[histName], m_mapRooGauss[histName]}, path+histName,{vectOptDraw} );
-      
-//       switch (m_checkDistri)
-// 	{
-// 	case 0:
-// 	  {
-// 	    vectOptDraw.push_back("xTitle=C^{meas}-C^{input}");
-// 	    break;
-// 	  }
-// 	case 1:
-// 	  {
-// 	    vectOptDraw.push_back("xTitle=dataRMS");
-// 	    break;
-// 	  }
-// 	default:
-// 	  vectOptDraw.push_back("xTitle=C^{meas}-C^{input}");
-// 	}
-
-//       vector <TH1*> vectHistTmp;
-//       vectHistTmp.push_back(m_mapHist[histName]);
-//       if (m_methodStats!=3) DrawPlot(vectHistTmp, path+histName, {vectOptDraw});       
-//       vectOptDraw.clear();
-//       vectHistTmp.clear();
-      
-//       iHist++;
-//     }
-
-//   //  Store plots into the file
-//   //stream << "\\section{Method to get stats: "<<m_methodStats<<"}"<< endl;  
-//   stream <<comment <<"\\newline"<<endl;
-//   stream << "\\indent Tree: "<< m_inTreeName<<"\\newline  "<<endl;
-//   stream << "\\indent Variables: ";
-//   for (unsigned int iVar=0; iVar< m_variablesBias.size(); iVar++)
-//     {
-//       if (iVar == m_variablesBias.size()-1) stream<<m_variablesBias[iVar] <<"\\newline  ";
-//       else  stream  << m_variablesBias[iVar] <<", ";
-//     }
-
-//   if (m_checkDistri ==1) stream << "\\indent Check for errSigma distribution\\newline"<<endl;
-//   WriteLatexMinipage( stream, m_histNames, 2);
-//   stream << "\\end{document}" << endl;
-//   string commandLine = "pdflatex  -interaction=batchmode " + latexFileName;
-//   system( commandLine.c_str() );
-//   system( commandLine.c_str() );
-//   system( commandLine.c_str() );
-
-//   commandLine = "rm " + path+ m_variablesBias[0]+ "*";
-//   system( commandLine.c_str() );
- 
-//   cout<<"Plots drawn and stored into "<<path+latexFileName<<endl;
-//   csvFile.close();
-//   return;
-// }
-
+  //  commandLine = "rm " + path+ m_variablesBias[0]+ "*";
+  //system( commandLine.c_str() );
+  cout<<"BiasAnalysis::MakePdf "+latexFileName+"  Done"<<endl;
+}
 
 
 // //============================================
@@ -677,19 +649,7 @@ void BiasAnalysis::SaveBiasInfo( string outName )
 //   csvFile.close();
 //   return;
 // }
-
-
-
-
-
-
-
-
-
-
-
-
-
+//=================================
 
 
 
