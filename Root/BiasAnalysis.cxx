@@ -279,14 +279,12 @@ void BiasAnalysis::SaveBiasInfo( string outName )
   vector <string> vectInfo;
   vector <double> vectStat;
   unsigned int skip{0};
-  string histName;
   TFile *outRootFile = new TFile( (outName+".root").c_str(), "RECREATE" ); 
   ofstream outputFile( (outName+".csv").c_str(), ios::out );
 
   for ( auto it=m_mapHist.begin(); it!=m_mapHist.end(); ++it )  {
-    histName= it->first;
     RemoveExtremalBins(it->second);
-    it->second->Write();
+    it->second->Write(); 
 
     //writing the csv file
     if (!skip) {
@@ -295,15 +293,15 @@ void BiasAnalysis::SaveBiasInfo( string outName )
       outputFile<<"Mean"<<" "<<"RMS"<<" "<<"ErrorMean"<<"\n";
       }
     skip++;
-    ParseVector(histName, vectInfo, '_');
+    ParseVector(it->first, vectInfo, '_');
+    outputFile<<it->first<<" "<<it->second->GetEntries()<<" ";
     for (unsigned int i=1; i<vectInfo.size(); i+=2) outputFile<<vectInfo[i]<<" ";
     vectInfo.clear();
 
-    vectStat=GetBiasStat( it->second, histName, m_methodStats );
+    vectStat=GetBiasStat( it->second, it->first, m_methodStats );
     for (unsigned int i=0; i<vectStat.size(); i++) outputFile<<vectStat[i]<<" ";
     outputFile<<"\n";
-    m_mapStatHist[histName]=vectStat;
-    outputFile<<histName<<" "<<it->second->GetEntries()<<" ";
+    m_mapStatHist[it->first]=vectStat;
   }//end iteration over histograms
 
   outRootFile->Close();

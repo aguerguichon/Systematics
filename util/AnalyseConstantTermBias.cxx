@@ -54,11 +54,11 @@ int main(int argc, char *argv[])
 
   string path= "/sps/atlas/a/aguerguichon/Calibration/Bias/";
   //string fileName= "Bias"+BinOrConf+"_test";
-  string fileName= "Test";
+  string fileName= "EtaBin24";
 
 
   BA.SelectVariables(dataFiles);
-  BA.SaveBiasInfo(path+"RootFiles/"+fileName);
+  BA.SaveBiasInfo(path+"Plots/"+fileName);
 
   path+= "Plots/";
   
