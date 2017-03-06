@@ -97,11 +97,11 @@ int main()
 	  timeStamp=mapBranches.GetLongLong("timeStamp");
 
 	  if (m12<80 || m12>100) continue;
-	  if (year==0){meanZDistri+=m12; nZ2015++;}
-	  //	  if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 || fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
+	  
+	  //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 || fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
 	  //if ( mapBranches.GetDouble("eta_calo_1") <1.55 || mapBranches.GetDouble("eta_calo_2") <1.55) continue;
-	  //if ( mapBranches.GetDouble("eta_calo_1") > -1.55 || mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
-	 
+	  if ( mapBranches.GetDouble("eta_calo_1") > -1.55 || mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
+	  if (year==0){meanZDistri+=m12; nZ2015++;}
 	  mean[year]+=m12;
 	  counter++;
 	  if (isMuPU) prof->Fill(muPU, m12);
@@ -116,10 +116,10 @@ int main()
 
       if (year==0) meanZDistri/=nZ2015;
       mean[year]/=(counter*meanZDistri);
-      cout<<"year: "<<year<<" mean: "<<mean[year]<<endl;
 
       if (isMuPU)
   	{
+	  cout<<"year: "<<year<<" mean: "<<mean[year]<<" meanZDistri: "<<meanZDistri<<endl;
   	  prof->Scale(1/meanZDistri);
   	  if (year==0) 
   	    {
@@ -139,9 +139,9 @@ int main()
   if (isMuPU)
     {
       vectOpt.push_back("xTitle= #mu");
-      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
-      vectOpt.push_back("rangeUserY= 0.998 1.005");
-      //      vectOpt.push_back("rangeUserY= 0.995 0.999");
+      vectOpt.push_back("yTitle= m_{ee} / <m_{ee, ECC}(2015)>");
+      //      vectOpt.push_back("rangeUserY= 0.998 1.005");
+      vectOpt.push_back("rangeUserY= 0.997 1.003");
       vectOpt.push_back("rangeUserX= 5 46");
       vectOpt.push_back("line=1");
       vectOpt.push_back("drawStyle=4");
@@ -160,7 +160,7 @@ int main()
       //myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", sizeText);
       myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
       //myText(0.22, 0.79, 1,"2016 data", sizeText);
-      //myText(0.43, 0.65, 1,"|#eta| < 1.37 (B-B events)", 0.05);
+      myText(0.43, 0.65, 1,"#eta < -1.55 (EC(C)-EC(C) events)", 0.05);
 
       histTmp=(TH1D*)c1->GetListOfPrimitives()->At(3);
       histTmp->SetMarkerStyle(25);
@@ -186,7 +186,7 @@ int main()
       histTmp->GetXaxis()->SetTitleOffset(1.20);
       histTmp->GetXaxis()->SetLabelSize(0.05);
       c1->Draw();
-      c1->SaveAs((savePath+"Mee_mu_inclusif.pdf").c_str());
+      c1->SaveAs((savePath+"Mee_mu_ECC.pdf").c_str());
 
       muFile->Close();
       delete muFile;

@@ -1,6 +1,7 @@
 #include <iostream>
 #include "TFile.h"
 #include "TCanvas.h"
+#include "TColor.h"
 #include "PlotFunctions/SideFunctions.h"
 #include <boost/program_options.hpp>
 #include <fstream>
@@ -22,7 +23,7 @@ int main( int argc, char* argv[] ) {
   //define all options in the program
   desc.add_options()
     ("help", "Display this help message")
-    ("year", po::value<string>(&year)->default_value("15"))
+    //    ("year", po::value<string>(&year)->default_value("15"))
     ;
 
   // Create a map vm that contains options and all arguments of options       
@@ -35,78 +36,81 @@ int main( int argc, char* argv[] ) {
   SetAtlasStyle();
   vector<double> frameUp = { -2.7, 2.7, 0, 0};
   vector<double> frameDown = { frameUp[0], frameUp[1], 0, 0};
-  TFile *inFileSyst = new TFile( "/sps/atlas/c/cgoudet/Calibration/ScaleResults/160519/EnergyScaleFactors.root" );
-  //TFile *totSystFile = new TFile("/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170124/EnergyScaleFactors.root");
+  vector <TH1D*> vectHistScale;
+  vector <TH1D*> vectHistStat;
+  vector <TH1D*> vectHistSystFill;
+  vector <int> vectColor= {600, 632};//600=kBlue, 632=kRed
+  vector <string> vectYear;
+  string var;
+  TH1D *histSyst=0; 
+
+  TFile *inFile = TFile::Open( "/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170125/EnergyScaleFactors.root" );
+
   TH1::AddDirectory(kFALSE);
   bool doReduce = 0;
 
   for ( unsigned int iScale =0; iScale < 2; iScale++ ) {
-    string var = iScale ?  "_c" : "";
-    TFile *inFileICHEP= new TFile( ("/sps/atlas/c/cgoudet/Calibration/ScaleResults/160519/DataOff_13TeV_25ns"+var+".root").c_str() );
-    var = iScale? "ScalesOff_1516_c" : "AlphaOff_"+year;
-    TFile *inFile = new TFile( ("/sps/atlas/a/aguerguichon/Calibration/PreRec/Results/"+var+".root").c_str() );
-    var = iScale ?  "c" : "alpha";
-    TH1D* histScale = (TH1D*) inFile->Get( ("measScale_"+var).c_str() );
-    TH1D* histSyst = (TH1D*) inFileSyst->Get( ("totSyst_"+var).c_str() );
-    TH1D* histICHEP= (TH1D*) inFileICHEP->Get( ("measScale_"+var).c_str() );
-    //    TH1D* totSyst=(TH1D*) totSystFile->Get( ("totSyst_"+var).c_str() );
-    if ( doReduce )  {
-      const TArrayD *binning = histScale->GetXaxis()->GetXbins();
-      vector<double> vectBin;
-      for ( int i=1; i<binning->GetSize(); i++ ) vectBin.push_back( binning->GetAt(i) );
-      vectBin.pop_back();
+    if (iScale) vectYear={"1516"};
+    else vectYear={"15", "16"};
 
-      TH1D *dumScale = new TH1D( "dumScale", "dumScale", vectBin.size()-1, &vectBin[0] );
-      TH1D *dumSyst = new TH1D( "dumSyst", "dumSyst", vectBin.size()-1, &vectBin[0] );
+    vectHistScale.clear();
+    vectHistStat.clear();
+    vectHistSystFill.clear();
 
-      for ( int i = 1; i<=dumScale->GetNbinsX(); ++i ) {
-	dumScale->SetBinContent( i, histScale->GetBinContent(i+1) );
-	dumSyst->SetBinContent( i, histSyst->GetBinContent(i+1) );
-	dumScale->SetBinError( i, histScale->GetBinError(i+1) );
-	dumSyst->SetBinError( i, histSyst->GetBinError(i+1) );
-      }
-
-      histScale=dumScale;
-      histSyst = dumSyst;
-    }
-
-
-    histScale->SetLineColor( kRed );
-    histScale->SetMarkerColor(kRed);
-    histScale->SetMarkerStyle(20);
-
-    histICHEP->SetLineColor( kBlue );
-    histICHEP->SetMarkerColor( kBlue );
-    histICHEP->SetMarkerStyle(20);
-    
-    histSyst->SetLineColor( kBlue );
-    histSyst->SetLineWidth( 2.5 );
-    histSyst->SetMarkerColor( kBlue );
-    histSyst->SetMarkerStyle(20);
-
-    TH1D *histScaleTot = (TH1D*) histICHEP->Clone();
-    histScaleTot->SetFillColor( kBlue-9 );
-    TH1D* histStat = (TH1D*) histScale->Clone();
-    histStat->ResetAttLine();
-    histStat->ResetAttMarker();
-    //    histStat->SetLineStyle(7);
-    histStat->SetLineWidth(1.5);
-    histStat->SetLineColor( kRed );
-    for ( int iBin = 1; iBin<histStat->GetNbinsX()+1; iBin++ ) {
-      histStat->SetBinContent( iBin, histScale->GetBinError( iBin ) );
-      histStat->SetBinError( iBin, 0 );
-      //      histICHEP->SetBinError( iBin, histSyst->GetBinContent(iBin) );
-      histScaleTot->SetBinError( iBin, histSyst->GetBinContent(iBin) );
+    for (unsigned int iHist=0; iHist<vectYear.size(); iHist++){
+      var = iScale? "c_"+vectYear[iHist] : "alpha_"+vectYear[iHist];
+      TH1D *histScale = (TH1D*) inFile->Get( ("centVal_"+var).c_str() );
+   
+      histScale->SetLineColor( vectColor[iHist] );
+      histScale->SetMarkerColor( vectColor[iHist] );
+      histScale->SetMarkerStyle(20);
       
-      //      histScaleTot->SetBinError( iBin, sqrt( histStat->GetBinContent(iBin)*histStat->GetBinContent(iBin)+ histSyst->GetBinContent(iBin)*histSyst->GetBinContent(iBin) ) );
-      //      cout << histSyst->GetBinContent(iBin) << " " << histStat->GetBinContent(iBin) << " " << sqrt( histStat->GetBinContent(iBin)*histStat->GetBinContent(iBin)+ histSyst->GetBinContent(iBin)*histSyst->GetBinContent(iBin) ) << " " ;
-      histSyst->SetBinContent( iBin, histScaleTot->GetBinError(iBin) );
-    }
+      TH1D* histStat = (TH1D*) histScale->Clone();
+      histStat->ResetAttLine();
+      histStat->ResetAttMarker();
+      histStat->SetLineWidth(1.5);
+      histStat->SetLineColor( kRed );
 
-    if ( iScale || doReduce ) {
-      histSyst->Scale( 1e3 );
-      histStat->Scale( 1e3 );
-    }    
+      var = iScale ?  "c" : "alpha";
+      histSyst = (TH1D*) inFile->Get( ("totSyst_"+var).c_str() );
+
+      TH1D *histScaleTot = (TH1D*) histScale->Clone();
+      histScaleTot->SetFillColor( vectColor[iHist]-9 );
+ 
+      for ( int iBin = 1; iBin<histStat->GetNbinsX()+1; iBin++ ) {
+	histStat->SetBinContent( iBin, histScale->GetBinError( iBin ) );
+	histStat->SetBinError( iBin, 0 );
+	histScaleTot->SetBinError( iBin, histSyst->GetBinContent(iBin) );
+      }
+      vectHistScale.push_back( histScale );
+      vectHistStat.push_back( histStat );
+      vectHistSystFill.push_back( histScaleTot );
+    } //end iHist
+    
+    histSyst->SetLineColor( kBlack );
+    histSyst->SetLineWidth( 2.5 );
+    histSyst->SetMarkerColor( kBlack );
+    histSyst->SetMarkerStyle(20);
+    
+    // if ( doReduce )  {
+    //   const TArrayD *binning = histScale->GetXaxis()->GetXbins();
+    //   vector<double> vectBin;
+    //   for ( int i=1; i<binning->GetSize(); i++ ) vectBin.push_back( binning->GetAt(i) );
+    //   vectBin.pop_back();
+
+    //   TH1D *dumScale = new TH1D( "dumScale", "dumScale", vectBin.size()-1, &vectBin[0] );
+    //   TH1D *dumSyst = new TH1D( "dumSyst", "dumSyst", vectBin.size()-1, &vectBin[0] );
+
+    //   for ( int i = 1; i<=dumScale->GetNbinsX(); ++i ) {
+    // 	dumScale->SetBinContent( i, histScale->GetBinContent(i+1) );
+    // 	dumSyst->SetBinContent( i, histSyst->GetBinContent(i+1) );
+    // 	dumScale->SetBinError( i, histScale->GetBinError(i+1) );
+    // 	dumSyst->SetBinError( i, histSyst->GetBinError(i+1) );
+    //   }
+
+    //   histScale=dumScale;
+    //   histSyst = dumSyst;
+    // }
 
     frameUp[2]   = iScale ? 0     : -0.03;
     frameUp[3]   = iScale ? 0.05 : ( doReduce ? 0.06 : 0.1 );
@@ -146,50 +150,49 @@ int main( int argc, char* argv[] ) {
     if ( frameDown[3] > 1 ) legendVar+= " (10^{-3})";
     dumDown->GetYaxis()->SetTitle( legendVar.c_str() );
 
-    padUp.cd();
-    histScaleTot->Draw("E2, same");
-    histICHEP->Draw("same");
-    histScale->Draw("SAME");
-    
-    double x = 0.4;
+    double x = 0.3;
     double y = 0.7;
     double s = 0.08;
     double lsize = 0.03;
 
-    myLineText( x, y, histScale->GetLineColor(), histScale->GetLineStyle(), "", s, histScale->GetLineWidth(), lsize ); 
-    myMarkerText( x, y, histScale->GetMarkerColor(), histScale->GetMarkerStyle(), "2017 recommandations", s, histScale->GetMarkerSize(), lsize ); 
-
-    myBoxText( x, y-0.1, histScaleTot->GetFillColor(), "", s, lsize ); 
-    myLineText( x, y-0.1, histICHEP->GetLineColor(), histICHEP->GetLineStyle(), "", s, histICHEP->GetLineWidth(), lsize ); 
-    myMarkerText( x, y-0.1, histICHEP->GetMarkerColor(), histICHEP->GetMarkerStyle(), "ICHEP recommandations", s, histICHEP->GetMarkerSize(), lsize ); 
-
-
+    //padUp
+    padUp.cd();
+    for (unsigned int iHist=0; iHist<vectYear.size(); iHist++){
+      vectHistSystFill[iHist]->Draw("E2, same");
+      myBoxText( x, y-iHist*0.1,  vectHistSystFill[iHist]->GetFillColor(), "", s, lsize );
+      myLineText( x, y-iHist*0.1, vectHistScale[iHist]->GetLineColor(), vectHistScale[iHist]->GetLineStyle(), "", s, vectHistScale[iHist]->GetLineWidth(), lsize ); 
+      if (iScale) myMarkerText( x, y-iHist*0.1, vectHistScale[iHist]->GetMarkerColor(), vectHistScale[iHist]->GetMarkerStyle(), "Electrons from Z#rightarrowee", s, vectHistScale[iHist]->GetMarkerSize(), lsize ); 
+      else  myMarkerText( x, y-iHist*0.1, vectHistScale[iHist]->GetMarkerColor(), vectHistScale[iHist]->GetMarkerStyle(), ("Electrons from Z#rightarrowee, 20"+vectYear[iHist]+" data").c_str(), s, vectHistScale[iHist]->GetMarkerSize(), lsize ); 
+      
+    }
+    for (unsigned int iHist=0; iHist<vectYear.size(); iHist++) vectHistScale[iHist]->Draw("SAME");
+    
+    //padDown
     padDown.cd();
-    histSyst->Draw("same");
-    histStat->Draw("same");
+    for (unsigned int iHist=0; iHist<vectYear.size(); iHist++){
+      if ( iScale || doReduce ) {
+	histSyst->Scale( 1e3 );
+	vectHistStat[iHist]->Scale( 1e3 );
+      }    
+      vectHistStat[iHist]->SetLineColor(vectColor[iHist]);
+      vectHistStat[iHist]->Draw("same");
+      if (iScale) myLineText( 0.48, 0.75-iHist*0.1, vectHistStat[iHist]->GetLineColor(), vectHistStat[iHist]->GetLineStyle(), "Stat.", 0.11, vectHistStat[iHist]->GetLineWidth() ); 
+      else myLineText( 0.48, 0.75-iHist*0.1, vectHistStat[iHist]->GetLineColor(), vectHistStat[iHist]->GetLineStyle(), ("Stat. (20"+vectYear[iHist]+" data)").c_str(), 0.11, vectHistStat[iHist]->GetLineWidth() ); 
+    }
     if ( !iScale && !doReduce ) padDown.SetLogy(1);
+    histSyst->Draw("same");
+    myLineText( 0.48, 0.85, histSyst->GetLineColor(), histSyst->GetLineStyle(), "Syst." ,0.11, histSyst->GetLineWidth() ); 
 
-    myLineText( 0.48, 0.85, histSyst->GetLineColor(), histSyst->GetLineStyle(), "ICHEP Syst." ,0.11, histSyst->GetLineWidth() ); 
-    myLineText( 0.48, 0.75, histStat->GetLineColor(), histStat->GetLineStyle(), "Stat.", 0.11, histStat->GetLineWidth() ); 
 
     canvas->cd();
-    //    ATLASLabel( 0.16, 0.9, "Work in progress", 1, 0.06 );
-    //myText( 0.5, 0.9, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
+
     ATLASLabel( 0.16, 0.9, "Work in progress", 1, 0.06 );
-    if (iScale) myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", 0.05 );
-    if (!iScale){
-      if (year=="15") myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 3.1 fb^{-1}", 0.05 );
-      else myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 33.9 fb^{-1}", 0.05 );
-    }
-
+    myText( 0.16, 0.85, 1, "#sqrt{s} = 13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", 0.05 );
+   
     string suffix = doReduce ? "_reduced" : "";
-    if (!iScale)suffix+=year;
-    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/ScaleFactors_"+var+suffix+".pdf").c_str() );
+    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".pdf").c_str() );
+    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".eps").c_str() );
   }//end iScale
-
-
-
-
 
   return 0;
 
