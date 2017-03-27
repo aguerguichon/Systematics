@@ -146,7 +146,7 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
       inTree->GetEntry(iEntry);
       histName =""; 
       if ( mapBranches.GetUnsigned( "nBins" )!=m_nBins ) continue;
-      bias = mapBranches.GetDouble( "sigma" )-mapBranches.GetDouble( "inputC" );
+      bias = mapBranches.GetDouble( "scale" )-mapBranches.GetDouble( "inputC" );
 	  
       //Combine all possible values of each variable
       for ( unsigned int iVar =0; iVar < m_variablesBias.size(); iVar++ ){
