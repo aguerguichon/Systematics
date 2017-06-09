@@ -16,7 +16,7 @@ int main()
 
   EWAnalysis EWA("Systematics/ConfigFile/EWConfig.boost");
 
-  EWA.AddEW(65, 115);
+  EWA.AddEW(65000, 115000);
   //  stackEW->Draw();
   //stackEW->SaveAs("testStack.root");
 

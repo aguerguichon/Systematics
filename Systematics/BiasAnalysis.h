@@ -19,6 +19,9 @@ class BiasAnalysis
 public:
   BiasAnalysis(std::string configFileName);
   ~BiasAnalysis();
+
+  double GetInput(TH1D *h, unsigned int iBin, unsigned int jBin){ return sqrt( (pow(h->GetBinContent(iBin),2)+ pow(h->GetBinContent(jBin),2)) / 2 ); };
+  double GetInput(TH1D *h, unsigned int iBin){ return h->GetBinContent(iBin); };
   /* - Read files, link tree branches to local variables and sorting variables according to the ones selected.                                                                               
     - Fill the map m_mapHist with unique histogramms for each combination of all possible values of each variable.                                                                          
    - Fill m_mapCij and m_mapErrCij for the inversion procedure

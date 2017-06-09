@@ -27,11 +27,13 @@ int main(int argc, char *argv[])
   po::options_description desc("Input data files (.root)");
   vector<string> dataFiles;
   bool isConf;
+  string fileName;
 
   desc.add_options()
     ("help", "Display this help message")
     ("dataFiles", po::value<vector <string> >(&dataFiles), "Absolute path" )
     ("isConf", po::value<bool> (&isConf), "Analyse of bin or conf" )
+    ("fileName", po::value<string> (&fileName), "Name of the output file (pattern used)" )
     ;
                                    
   po::positional_options_description p;
@@ -53,9 +55,6 @@ int main(int argc, char *argv[])
   BiasAnalysis BA("Systematics/ConfigFile/Bias"+BinOrConf+".boost");
 
   string path= "/sps/atlas/a/aguerguichon/Calibration/Bias/";
-  //string fileName= "Bias"+BinOrConf+"_test";
-  string fileName= "EtaBin68";
-
 
   BA.SelectVariables(dataFiles);
   BA.SaveBiasInfo(path+"Plots/"+fileName);

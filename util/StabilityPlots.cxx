@@ -34,10 +34,10 @@ int main()
 
   TH1::AddDirectory(kFALSE);
   SetAtlasStyle();
-  string path= "/sps/atlas/a/aguerguichon/Calibration/DataxAOD/";
+  string path= "/sps/atlas/a/aguerguichon/Calibration/DataxAOD/eosNtuples/";
   string savePath= "/sps/atlas/a/aguerguichon/Calibration/Plots/";
   string fileName, pattern, name, yearHist;  
-  vector <string> vectYear (2);
+  vector <string> vectYear;
   vector <string> vectOpt;
   vector <TH1*> vectProf; 
   vector <TH1*> vectHist; 
@@ -50,9 +50,12 @@ int main()
   unsigned long long timeMin=1e11;
   unsigned int timeMax=0;
   double meanZDistri=0;
-  double m12, muPU, timeStamp; 
+  double m12{0};
+  int timeStamp{0};
+  int muPU{0};
   double counter;
   double nZ2015=0;
+  float weight{0};
 
   float sizeText=0.05;
   float x=0.3;
@@ -61,50 +64,51 @@ int main()
   
   vector <double> mean (2);
 
-  bool isMuPU=1;
+  bool isMuPU=0;
   DrawOptions drawOpt;
 
   if (isMuPU) name=savePath+"Mu";
   else name=savePath+"Time";
-  vectYear[0]= "15";
-  vectYear[1]= "16";
+  vectYear.push_back("16");
+  //  vectYear[1]= "16";
 
   for (unsigned int year=0; year<vectYear.size(); year++)
     {
       counter=0;
       mean[year]=0;
-      pattern="Data"+vectYear[year]+"_13TeV_Zee_noGain_Lkh1";
-      if (isMuPU) prof = new TProfile ("hprof", "", 50, 0, 50 );
+      //if (isMuPU) prof = new TProfile ("hprof", "", 50, 0, 50 );
+      if (isMuPU) prof = new TProfile ("hprof", "", 150, -150, 150 );
 
 
-      fileName=path+pattern+"/"+pattern+".root";
+      fileName=path+"NominalZeeSelection/data"+vectYear[year]+".root";
+      //      fileName=path+"NominalZeeSelection/mcZee.root";
       inFile= TFile::Open(fileName.c_str());
 
       if (!inFile) break;
       cout<<"File: "<<fileName.c_str()<<endl;
-      inTree= (TTree*) inFile->Get( "Analysis_selectionTree" );
+      inTree= (TTree*) inFile->Get("CollectionTree" );
 
       MapBranches mapBranches;
-      mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "muPU", "eta_calo_1", "eta_calo_2"});
+      mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "mu_corr", "el1_etaCalo", "el2_etaCalo", "bcid", "zVertex", "weight_16"});
 
 
       for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
 	{
 	  inTree->GetEntry(iEntry);
-
 	  m12=mapBranches.GetDouble("m12");
-	  muPU=mapBranches.GetDouble("muPU");
-	  timeStamp=mapBranches.GetLongLong("timeStamp");
+	  //	  muPU=mapBranches.GetDouble("mu_corr");
+	  muPU=mapBranches.GetDouble("zVertex");
+	  timeStamp=mapBranches.GetInt("timeStamp");
+	  weight=mapBranches.GetDouble("weight_16");
 
-	  if (m12<80 || m12>100) continue;
-	  
-	  //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 || fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
-	  //if ( mapBranches.GetDouble("eta_calo_1") <1.55 || mapBranches.GetDouble("eta_calo_2") <1.55) continue;
-	  if ( mapBranches.GetDouble("eta_calo_1") > -1.55 || mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
+	  if (m12<80000 || m12>100000) continue;
+	  //	  if ( fabs( mapBranches.GetDouble("el1_etaCalo") )>1.37 || fabs( mapBranches.GetDouble("el2_etaCalo") )>1.37) continue;
+	  //	  if ( mapBranches.GetDouble("el1_etaCalo") <1.55 || mapBranches.GetDouble("el2_etaCalo") <1.55) continue;
+	  //	  if ( mapBranches.GetDouble("el1_etaCalo") > -1.55 || mapBranches.GetDouble("el2_etaCalo") > -1.55) continue;
 	  if (year==0){meanZDistri+=m12; nZ2015++;}
 	  mean[year]+=m12;
 	  counter++;
-	  if (isMuPU) prof->Fill(muPU, m12);
+	  if (isMuPU) prof->Fill(muPU, m12, weight);
 	  else
 	    {
 	      if (timeStamp < timeMin) timeMin=timeStamp;
@@ -138,11 +142,12 @@ int main()
 
   if (isMuPU)
     {
-      vectOpt.push_back("xTitle= #mu");
-      vectOpt.push_back("yTitle= m_{ee} / <m_{ee, ECC}(2015)>");
-      //      vectOpt.push_back("rangeUserY= 0.998 1.005");
-      vectOpt.push_back("rangeUserY= 0.997 1.003");
-      vectOpt.push_back("rangeUserX= 5 46");
+      vectOpt.push_back("xTitle= Vertex position [mm]");
+      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(MC)>");
+      vectOpt.push_back("rangeUserY= 0.99 1.01");
+      //      vectOpt.push_back("rangeUserY= 0.997 1.003");
+      //      vectOpt.push_back("rangeUserX= 5 46");
+      //      vectOpt.push_back("rangeUserX= -150 150");
       vectOpt.push_back("line=1");
       vectOpt.push_back("drawStyle=4");
       vectOpt.push_back("extension=root");
@@ -156,37 +161,38 @@ int main()
       c1=(TCanvas*)muFile->Get("c1");
       c1->cd();
       
-      ATLASLabel(0.22, 0.87, "Internal", 1, 0.06);
+      ATLASLabel(0.22, 0.87, "Work in progress", 1, 0.06);
       //myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", sizeText);
-      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
+      //      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
+      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, MC", sizeText);
       //myText(0.22, 0.79, 1,"2016 data", sizeText);
-      myText(0.43, 0.65, 1,"#eta < -1.55 (EC(C)-EC(C) events)", 0.05);
+      //      myText(0.43, 0.65, 1,"|#eta| < 1.37 (B-B events)", 0.05);
 
-      histTmp=(TH1D*)c1->GetListOfPrimitives()->At(3);
+      histTmp=(TH1D*)c1->GetListOfPrimitives()->At(2);
       histTmp->SetMarkerStyle(25);
       histTmp->SetMarkerColor(kRed);
       histTmp->SetLineColor(kRed);
       histTmp->SetMarkerSize(1);
       yearHist="2016";
-      myLineText( x, y, histTmp->GetLineColor(), histTmp->GetLineStyle(), "", sizeText, histTmp->GetLineWidth(), lsize  ); 
-      myMarkerText( x, y, histTmp->GetMarkerColor(), histTmp->GetMarkerStyle(), yearHist.c_str(), sizeText, histTmp->GetMarkerSize(), lsize); 
+      //myLineText( x, y, histTmp->GetLineColor(), histTmp->GetLineStyle(), "", sizeText, histTmp->GetLineWidth(), lsize  ); 
+      //      myMarkerText( x, y, histTmp->GetMarkerColor(), histTmp->GetMarkerStyle(), yearHist.c_str(), sizeText, histTmp->GetMarkerSize(), lsize); 
           
-      histTmp =(TH1D*)c1->GetListOfPrimitives()->At(2);  
-      histTmp->SetMarkerStyle(8);
-      histTmp->SetMarkerSize(1);
-      yearHist="2015";
-      // myLineText( x, y-0.08, histTmp->GetLineColor(), histTmp->GetLineStyle(), "", sizeText, histTmp->GetLineWidth(), lsize  ); 
-      // myMarkerText( x, y-0.08, histTmp->GetMarkerColor(), histTmp->GetMarkerStyle(), yearHist.c_str(), sizeText, histTmp->GetMarkerSize(), lsize); 
-      histTmp->SetMarkerColorAlpha(0, 0);
-      histTmp->SetLineColorAlpha(0, 0);
-      histTmp->GetYaxis()->SetTitleSize(0.05);
-      histTmp->GetYaxis()->SetTitleOffset(1.10);
-      histTmp->GetYaxis()->SetLabelSize(0.04);
-      histTmp->GetXaxis()->SetTitleSize(0.5);
-      histTmp->GetXaxis()->SetTitleOffset(1.20);
-      histTmp->GetXaxis()->SetLabelSize(0.05);
+      // histTmp =(TH1D*)c1->GetListOfPrimitives()->At(2);  
+      // histTmp->SetMarkerStyle(8);
+      // histTmp->SetMarkerSize(1);
+      // yearHist="2015";
+      // // myLineText( x, y-0.08, histTmp->GetLineColor(), histTmp->GetLineStyle(), "", sizeText, histTmp->GetLineWidth(), lsize  ); 
+      // // myMarkerText( x, y-0.08, histTmp->GetMarkerColor(), histTmp->GetMarkerStyle(), yearHist.c_str(), sizeText, histTmp->GetMarkerSize(), lsize); 
+      // histTmp->SetMarkerColorAlpha(0, 0);
+      // histTmp->SetLineColorAlpha(0, 0);
+      // histTmp->GetYaxis()->SetTitleSize(0.05);
+      // histTmp->GetYaxis()->SetTitleOffset(1.10);
+      // histTmp->GetYaxis()->SetLabelSize(0.04);
+      // histTmp->GetXaxis()->SetTitleSize(0.5);
+      // histTmp->GetXaxis()->SetTitleOffset(1.20);
+      // histTmp->GetXaxis()->SetLabelSize(0.05);
       c1->Draw();
-      c1->SaveAs((savePath+"Mee_mu_ECC.pdf").c_str());
+      c1->SaveAs((savePath+"MeeMC_zvertex.eps").c_str());
 
       muFile->Close();
       delete muFile;
@@ -197,29 +203,28 @@ int main()
       unsigned int nBins= (timeMax-timeMin)/(7*24*60*60); //nb of weeks
       for (unsigned int year=0; year<vectYear.size(); year++)
 	{
+	  cout<<timeMin<<" "<<timeMax<<endl;
 	  prof = new TProfile ("hprof", "", nBins, timeMin, timeMax);
-	  pattern="Data"+vectYear[year]+"_13TeV_Zee_Lkh1";
-	  for (int iFile=0; iFile<10; iFile++)
-	    {
-	      fileName=path+pattern+"/"+pattern+"_"+to_string(iFile)+".root";
-	      inFile= TFile::Open(fileName.c_str());
-	      if (!inFile) break;
 
-	      inTree= (TTree*) inFile->Get( (pattern+"_"+to_string(iFile)+"_selectionTree").c_str() );
-	      MapBranches mapBranches;
-	      mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "eta_calo_1", "eta_calo_2"});
-	      for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
-		{
-		  inTree->GetEntry(iEntry);
+	  fileName=path+"NominalZeeSelection/data"+vectYear[year]+".root";
+	  inFile= TFile::Open(fileName.c_str());
+	  if (!inFile) break;
+
+	  inTree= (TTree*) inFile->Get( "CollectionTree" );
+	  MapBranches mapBranches;
+	  mapBranches.LinkTreeBranches(inTree, 0, {"m12", "timeStamp", "el1_etaCalo", "el2_etaCalo"});
+	  for (unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
+	    {
+	      inTree->GetEntry(iEntry);
 	
-		  m12=mapBranches.GetDouble("m12");
-		  if (m12<80 || m12>100) continue;
-		  //if ( fabs( mapBranches.GetDouble("eta_calo_1") )>1.37 || fabs( mapBranches.GetDouble("eta_calo_2") )>1.37) continue;
-		  //if ( mapBranches.GetDouble("eta_calo_1") <1.55 || mapBranches.GetDouble("eta_calo_2") <1.55) continue;
-		  if ( mapBranches.GetDouble("eta_calo_1") > -1.55 || mapBranches.GetDouble("eta_calo_2") > -1.55) continue;
-		  prof->Fill( mapBranches.GetLongLong("timeStamp"), m12);
-		}
-	    }//end iFile
+	      m12=mapBranches.GetDouble("m12");
+	      if (m12<80000 || m12>100000) continue;
+	      //if ( fabs( mapBranches.GetDouble("el1_etaCalo") )>1.37 || fabs( mapBranches.GetDouble("el2_etaCalo") )>1.37) continue;
+	      //if ( mapBranches.GetDouble("el1_etaCalo") <1.55 || mapBranches.GetDouble("el2_etaCalo") <1.55) continue;
+	      //if ( mapBranches.GetDouble("el1_etaCalo") > -1.55 || mapBranches.GetDouble("el2_etaCalo") > -1.55) continue;
+	      prof->Fill( mapBranches.GetInt("timeStamp"), m12);
+	    }
+
 	  prof->Scale(1/meanZDistri);
 	  vectProf.push_back(prof);
 	}//end year
@@ -243,7 +248,7 @@ int main()
 	    }
 	}
       vectOpt.push_back("xTitle= Date (day/month/year) ");
-      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2015)>");
+      vectOpt.push_back("yTitle= m_{ee} / <m_{ee}(2016)>");
       //      vectOpt.push_back("rangeUserY= 0.998 1.004");
       vectOpt.push_back("line=1");
       vectOpt.push_back("extension=root");
@@ -257,31 +262,31 @@ int main()
       TFile *timeFile=TFile::Open((savePath+"Time.root").c_str());
       c1=(TCanvas*)timeFile->Get("c1");
       c1->cd();
-      histTmp =(TH1D*)c1->GetListOfPrimitives()->At(2);
-
-      ATLASLabel(0.22, 0.87, "Internal", 1, 0.06);
-      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 33.9 (2016) fb^{-1}", sizeText);
-      myText(0.43, 0.73-0.4, 1,"|#eta| < 1.37 (EC(C)-EC(C) events)", 0.05);
+      histTmp =(TH1D*)c1->GetListOfPrimitives()->At(1);
+      ATLASLabel(0.22, 0.87, "Work in progress", 1, 0.06);
+      myText(0.22, 0.79, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 32.9 (2016) fb^{-1}", sizeText);
+      //      myText(0.43, 0.73-0.4, 1,"|#eta| < 1.37 (EC(C)-EC(C) events)", 0.05);
       histTmp->SetLineColor(kRed);
       histTmp->SetMarkerColor(kRed);
-      histTmp =(TH1D*)c1->GetListOfPrimitives()->At(0);
-      histTmp->GetYaxis()->SetTitleSize(0.05);
-      histTmp->GetYaxis()->SetTitleOffset(1.10);
-      histTmp->GetYaxis()->SetLabelSize(0.04);
-
+      // histTmp =(TH1D*)c1->GetListOfPrimitives()->At(0);
+      // histTmp->GetYaxis()->SetTitleSize(0.05);
+      // histTmp->GetYaxis()->SetTitleOffset(1.10);
+      // histTmp->GetYaxis()->SetLabelSize(0.04);
+      cout<<"test 1\n";
       histTmp->GetXaxis()->SetTitleSize(0.05);
       histTmp->GetXaxis()->SetTitleOffset(1.20);
       histTmp->GetXaxis()->SetLabelSize(0.05);
-     
+      
+      cout<<"test"<<endl;
       TLine *line= new TLine (histTmp->GetBinCenter(1), mean[0], histTmp->GetBinCenter(histTmp->GetNbinsX()), mean[0]);
       line->SetLineColor(kBlack);
       line->Draw();
-      line= new TLine (histTmp->GetBinCenter(1), mean[1], histTmp->GetBinCenter(histTmp->GetNbinsX()) , mean[1]);
-      line->SetLineColor(kRed);
-      line->Draw();
+      // line= new TLine (histTmp->GetBinCenter(1), mean[1], histTmp->GetBinCenter(histTmp->GetNbinsX()) , mean[1]);
+      // line->SetLineColor(kRed);
+      // line->Draw();
 
-      
-      c1->SaveAs((savePath+"Mee_time_ECC.root").c_str());
+      cout<<"test\n";
+      c1->SaveAs((savePath+"Mee_time.eps").c_str());
       timeFile->Close();
       delete timeFile;
 

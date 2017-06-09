@@ -18,8 +18,8 @@ class EWAnalysis
   void AddEW(double mMin, double mMax);
 
  private:
-  std::string m_dataPattern;
-  std::vector <std::string> m_vectMC;
-  bool m_isScaled;
+  std::vector <std::vector<std::string>> m_vectMC;
+  std::vector <std::vector<std::string>> m_vectData;
+  std::vector <std::string> m_vectMCName;
   
 };

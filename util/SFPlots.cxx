@@ -44,7 +44,8 @@ int main( int argc, char* argv[] ) {
   string var;
   TH1D *histSyst=0; 
 
-  TFile *inFile = TFile::Open( "/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170125/EnergyScaleFactors.root" );
+  TFile *inFile = TFile::Open( "/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170608/EnergyScaleFactors.root" );
+  TFile *systFile = TFile::Open( "/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170601/EnergyScaleFactors.root" );
 
   TH1::AddDirectory(kFALSE);
   bool doReduce = 0;
@@ -72,7 +73,7 @@ int main( int argc, char* argv[] ) {
       histStat->SetLineColor( kRed );
 
       var = iScale ?  "c" : "alpha";
-      histSyst = (TH1D*) inFile->Get( ("totSyst_"+var).c_str() );
+      histSyst = (TH1D*) systFile->Get( ("totSyst_"+var).c_str() );
 
       TH1D *histScaleTot = (TH1D*) histScale->Clone();
       histScaleTot->SetFillColor( vectColor[iHist]-9 );
@@ -117,7 +118,7 @@ int main( int argc, char* argv[] ) {
 
     frameUp[2]   = iScale ? 0     : -0.03;
     frameUp[3]   = iScale ? 0.065 : ( doReduce ? 0.06 : 0.18 );
-    frameDown[3] = iScale ? 6 : ( !doReduce ? 1e-2: 6 );
+    frameDown[3] = iScale ? 6 : ( !doReduce ? 8e-2: 6 );
     frameDown[2] = ( !iScale && !doReduce ) ? 5e-5 : 0;
 
     TCanvas *canvas = new TCanvas();
@@ -140,7 +141,7 @@ int main( int argc, char* argv[] ) {
     dumDown->GetYaxis()->SetTitleSize( 0.12 );
     dumDown->GetYaxis()->SetTitleOffset( 0.4 );
     //xAxis
-    dumDown->GetXaxis()->SetTitle( "#eta" );
+    dumDown->GetXaxis()->SetTitle( "#eta_{CALO}" );
     dumDown->GetXaxis()->SetTitleSize( 0.12 );
     dumDown->GetXaxis()->SetLabelSize( 0.12 );
     dumDown->GetXaxis()->SetTitleOffset( 0.45 );
@@ -187,14 +188,14 @@ int main( int argc, char* argv[] ) {
 
     canvas->cd();
 
-    ATLASLabel( 0.16, 0.9, "Preliminary", 1, 0.06 );
-    myText( 0.16, 0.84, 1, "#sqrt{s} = 13 TeV, L = 3.1 (2015) + 33.9 (2016) fb^{-1}", 0.05 );
+    ATLASLabel( 0.16, 0.9, "Internal", 1, 0.06 );
+    myText( 0.16, 0.84, 1, "#sqrt{s} = 13 TeV, L = 3.2 (2015) + 32.9 (2016) fb^{-1}", 0.05 );
     myText( 0.16, 0.78, 1, "|#eta| < 2.47, p_{T} > 27GeV", 0.05 );
 
     string suffix = doReduce ? "_reduced" : "";
-    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".pdf").c_str() );
+    //    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".pdf").c_str() );
     canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".eps").c_str() );
-    canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".png").c_str() );
+    //canvas->SaveAs( ("/sps/atlas/a/aguerguichon/Calibration/Plots/PNScaleFactors_"+var+".png").c_str() );
   }//end iScale
 
   return 0;

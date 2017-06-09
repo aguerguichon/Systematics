@@ -120,14 +120,13 @@ BiasAnalysis::~BiasAnalysis()
 }
 
 //===================================================
-
 void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 {
   cout<<"BiasAnalysis::SelectVariables"<<endl;
 
   map <string, RooArgSet*> mapArgSet; 
-  TTree *inTree=0;
-  TFile *inFile=0;
+  TTree *inTree{0};
+  TFile *inFile{0};
   double bias{0};
   string histName, rooName, errSigma, value;
 
@@ -142,12 +141,18 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
     MapBranches mapBranches; 
     mapBranches.LinkTreeBranches(inTree);
 
+    TH1D *inputHist=(TH1D*)inFile->Get("histInput");
+
     for ( unsigned int iEntry=0; iEntry<inTree->GetEntries(); iEntry++ ) {
       inTree->GetEntry(iEntry);
       histName =""; 
       if ( mapBranches.GetUnsigned( "nBins" )!=m_nBins ) continue;
-      bias = mapBranches.GetDouble( "scale" )-mapBranches.GetDouble( "inputC" );
-	  
+      //bias = mapBranches.GetDouble( "scale" )-mapBranches.GetDouble( "inputC" );
+      if (m_inTreeName.find("Configuration")!=string::npos) bias = mapBranches.GetDouble( "scale" )- GetInput( inputHist,mapBranches.GetUnsigned( "iConf" )+1, mapBranches.GetUnsigned( "jConf" )+1 );
+      else bias = mapBranches.GetDouble( "scale" )- GetInput( inputHist, mapBranches.GetUnsigned( "iBin" )+1 );
+      cout<<mapBranches.GetUnsigned( "iBin" )+1<<" "<<mapBranches.GetDouble( "scale" )<<" "<<GetInput( inputHist,mapBranches.GetUnsigned( "iBin" )+1 )<<" "<<bias<<endl;
+      //      if (iFile ==0 )cout << bias<< " "<<mapBranches.GetDouble( "scale" )<<" " <<GetInput( inputHist, mapBranches.GetUnsigned( "iBin" )+1 )<< endl;
+
       //Combine all possible values of each variable
       for ( unsigned int iVar =0; iVar < m_variablesBias.size(); iVar++ ){
 	value=mapBranches.GetLabel( m_variablesBias[iVar] );
@@ -157,7 +162,7 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
 	if ( iVar == m_variablesBias.size()-1 ) {
 	  histName+= m_variablesBias[iVar]+"_"+value; 
        	  if ( !m_mapHist.count(histName) ) {
-	    m_mapHist[histName] = new TH1D( histName.c_str(), "", 2000, -0.1, 0.1 );
+	    m_mapHist[histName] = new TH1D( histName.c_str(), "", 4000, -0.1, 0.1 );
 	    m_mapHist[histName]->Sumw2();
 
 	    //Create elements needed to fit using RooFit
@@ -177,13 +182,13 @@ void BiasAnalysis::SelectVariables(vector <string> dataFiles)
       }//end iVar
     }//end iEntry
 
+    delete inputHist; inputHist=0;
     inFile->Close(); //close file and delete tree
     delete inFile; inFile=0;
     
   }//end iFile
 
   cout<<"BiasAnalysis::SelectVariables Done"<<endl;
-
   return;
 }
 
@@ -279,7 +284,7 @@ void BiasAnalysis::SaveBiasInfo( string outName )
   vector <string> vectInfo;
   vector <double> vectStat;
   unsigned int skip{0};
-  TFile *outRootFile = new TFile( (outName+".root").c_str(), "RECREATE" ); 
+  TFile *outRootFile = new TFile( (outName+".root").c_str(), "RECREATE" );
   ofstream outputFile( (outName+".csv").c_str(), ios::out );
 
   for ( auto it=m_mapHist.begin(); it!=m_mapHist.end(); ++it )  {
@@ -307,6 +312,7 @@ void BiasAnalysis::SaveBiasInfo( string outName )
   outRootFile->Close();
   delete outRootFile; outRootFile=0;
   //  delete hist; hist=0;
+  outputFile.close();
   cout<<"BiasAnalysis::SaveBiasInfo Done"<<endl;
 
   return;
@@ -352,7 +358,11 @@ void BiasAnalysis::MakeBiasPlots(string path, string latexFileName, string comme
     vectOpt.push_back("extendUp= 0.4");
     vectOpt.push_back("xTitle=C^{meas}-C^{input}");
     vector <TH1*> vectHistTmp={it->second};
-    
+    // TCanvas *c1= new TCanvas ();
+    // it->second->Draw();
+    // c1->SaveAs((histName+".eps").c_str());
+
+
     if (m_methodStats == 3)  DrawPlot(m_mapRooVar[histName], {m_mapRooDataSet[histName], m_mapRooGauss[histName]}, path+histName,{vectOpt} );
     else {
       drawOpt.FillOptions(vectOpt); 
@@ -393,7 +403,7 @@ void BiasAnalysis::MakePdf(string latexFileName, vector<string> vectHistNames, s
   system( commandLine.c_str() );
   system( commandLine.c_str() );
   system( commandLine.c_str() );
-
+  stream.close();
   //  commandLine = "rm " + path+ m_variablesBias[0]+ "*";
   //system( commandLine.c_str() );
   cout<<"BiasAnalysis::MakePdf "+latexFileName+"  Done"<<endl;

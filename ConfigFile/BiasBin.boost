@@ -1,12 +1,8 @@
-variablesBias=inputC
 variablesBias=statTree
-variablesBias=indepTemplates
-variablesBias=indepDistorded
-variablesBias=bootstrap
 variablesBias=iBin
 
 selectTree= scalesTree
 
 methodStats=1
 
-nBins=24
+nBins=68

@@ -41,12 +41,11 @@ int main(int argc, char *argv[])
   //Define options to read name of files from the command line                             
   po::options_description desc("Input data files (.root)");                                
   bool doSyst;
-  string year;
 
   desc.add_options()                                                                       
     ("help", "Display this help message")                                                  
     ("doSyst", po::value<bool>(&doSyst)->default_value(0), "Create the scales uncertainty band histogram" )               
-    ("year", po::value<string>(&year)->default_value("16"), "15 or 16" )               
+    //    ("year", po::value<string>(&year)->default_value("16"), "15 or 16" )               
     ;                                                                                      
 
   po::variables_map vm;                                                                    
@@ -57,16 +56,16 @@ int main(int argc, char *argv[])
   //=================================================
 
   SetAtlasStyle();
-  TH1::AddDirectory(kFALSE);
+  //  TH1::AddDirectory(kFALSE);
 
   unsigned int bin;
   double SF, phi, eta, pt, deltaSF, errScale;
-  string fileName, pattern, lumi, histName;
+  string fileName, pattern, lumi, histName, year;
 
   vector < vector<string> > rootFilesName, inObjName;
   vector <TLorentzVector> VLElec(3), VLZ(3);
   vector <TH1D*> vectHist;
-  vector < vector<TH1D*> > tmpHist(2, vector<TH1D*>(3));
+  vector < vector<TH1D*> > tmpHist(3, vector<TH1D*>(3));
 
   TFile *inFile=0;
   TTree *inTree=0;
@@ -75,101 +74,99 @@ int main(int argc, char *argv[])
   TH1D *systHist=0;
   TH1D *scaleHist=0;
 
-  double x = 0.7;
+  double x = 0.75;
   double y = 0.82;
   double lsize = 0.04;
   float sizeText=0.065;
-  unsigned nBins= 20;
+  unsigned nBins= 40;
 
-  TFile *scalesFile= TFile::Open( "/sps/atlas/c/cgoudet/Calibration/ScaleResults/160519/EnergyScaleFactors.root" );  
+  TFile *scalesFile= TFile::Open( "/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170125/EnergyScaleFactors.root" );  
+  TFile *systFile= TFile::Open( "/sps/atlas/a/aguerguichon/Calibration/ScaleResults/170601/EnergyScaleFactors.root" );  
 
   string savePath= "/sps/atlas/a/aguerguichon/Calibration/Plots/";
-  string dataPath="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/";
+  string dataPath="/sps/atlas/a/aguerguichon/Calibration/DataxAOD/eosNtuples/NominalZeeSelection/";
 
   
   //=========================GET THE SCALE UNCERTAINTY BAND
   if (doSyst)
     {
-      for (int isData= 0; isData<2; isData++)
+      for (int isData= 0; isData<3; isData++)
 	{
 	  histName= isData? "data" :"mc";
 	  for (int i=0; i<3; i++){  tmpHist[isData][i] = new TH1D ((histName+to_string(i)).c_str(), "", nBins, 80, 100) ;  } //intialize histograms for +, - and no deltaSF      
-
-
-	  //pattern= isData? "Data"+year+"_13TeV_Zee_Lkh1" : "MC15c_13TeV_Zee_Lkh1";
-	  histName= isData? "centVal_alpha" :"centVal_c";
+	  if (isData ==1) year = "16";
+	  if (isData ==2) year = "15";
+	  
+	  histName= isData? "centVal_alpha_"+year :"centVal_c_1516";
 	  scaleHist= static_cast<TH1D*>(scalesFile->Get(histName.c_str()) );
 	  histName= isData? "totSyst_alpha" :"totSyst_c";
-	  systHist= static_cast<TH1D*>( scalesFile->Get(histName.c_str()) ) ;
+	  systHist= static_cast<TH1D*>( systFile->Get(histName.c_str()) ) ;
   
-	  //InputCompare input( (dataPath+pattern+"/"+pattern+".boost").c_str() );
-	  InputCompare input( ("/sps/atlas/a/aguerguichon/Calibration/Test/Scales/correction"+year).c_str() );
-	  rootFilesName=input.GetRootFilesName();
-	  inObjName=input.GetObjName();
+	  inFile=TFile::Open(( isData? dataPath+"data"+year+".root": dataPath+"mcZee.root"  ).c_str() );
 
-	  //      for (unsigned int iFile=0; iFile<rootFilesName[0].size(); iFile++)
-	  for (unsigned int iFile=0; iFile<1; iFile++)
-	    {
-	      cout<<rootFilesName[0][iFile]<<endl;
-	      inFile=TFile::Open( (rootFilesName[0][iFile]).c_str() );
-	      inTree=(TTree*) inFile->Get( (inObjName[0][iFile]).c_str() );
+	  cout<<inFile->GetName()<<endl;
+	  inTree=(TTree*) inFile->Get( "CollectionTree" );
 	
-	      MapBranches mapBranches;
-	      mapBranches.LinkTreeBranches(inTree);
+	  MapBranches mapBranches;
+	  mapBranches.LinkTreeBranches(inTree);
 
-	      for(int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
+	  for(int iEntry=0; iEntry<inTree->GetEntries(); iEntry++)
+	    {
+	      inTree->GetEntry(iEntry);
+	      randN.SetSeed();
+	      for(int iElec=1; iElec<3; iElec++)
 		{
-		  inTree->GetEntry(iEntry);
-		  randN.SetSeed();
-		  for(int iElec=1; iElec<3; iElec++)
+		  eta=mapBranches.GetDouble("el"+to_string(iElec)+"_etaCalo");
+		  phi=mapBranches.GetDouble("phi"+to_string(iElec));
+		  bin=scaleHist->FindFixBin(eta);
+		  SF=scaleHist->GetBinContent(bin);
+		  //deltaSF=sqrt( pow(histAlphaVal->GetBinError(bin),2) + pow(histAlphaSyst->GetBinContent(bin),2) );
+		  deltaSF=systHist->GetBinContent(bin);
+		  for (int sign=0; sign<3; sign++ )
 		    {
-		      eta=mapBranches.GetDouble("eta_calo_"+to_string(iElec));
-		      phi=mapBranches.GetDouble("phi_"+to_string(iElec));
-		      bin=scaleHist->FindFixBin(eta);
-		      SF=scaleHist->GetBinContent(bin);
-		      //deltaSF=sqrt( pow(histAlphaVal->GetBinError(bin),2) + pow(histAlphaSyst->GetBinContent(bin),2) );
-		      deltaSF=systHist->GetBinContent(bin);
-		      for (int sign=0; sign<3; sign++ )
-			{
-			  if (iElec==1) VLZ[sign].SetPtEtaPhiM(0,0,0,0);
-			  if (isData) pt=mapBranches.GetDouble( "pt_"+to_string(iElec) ) / ( 1+SF+(sign-1)*deltaSF );
-			  else pt=mapBranches.GetDouble("pt_"+to_string(iElec))*( 1+(SF+(sign-1)*deltaSF)*randN.Gaus(0,1) );
-			  VLElec[sign].SetPtEtaPhiM(pt, eta, phi, 0.511);//in MeV
-			  VLZ[sign]+=VLElec[sign];
-			  if (iElec==2) tmpHist[isData][sign]->Fill(VLZ[sign].M()/1000);
-			}//end sign
-		    }//end iElec
-		}//end iEntry
+		      if (iElec==1) VLZ[sign].SetPtEtaPhiM(0,0,0,0);
+		      if (isData) pt=mapBranches.GetDouble( "pt"+to_string(iElec) ) / ( 1+SF+(sign-1)*deltaSF );
+		      else pt=mapBranches.GetDouble("pt"+to_string(iElec))*( 1+(SF+(sign-1)*deltaSF)*randN.Gaus(0,1) );
+		      VLElec[sign].SetPtEtaPhiM(pt, eta, phi, 0.511);//in MeV
+		      VLZ[sign]+=VLElec[sign];
+		      if (iElec==2) tmpHist[isData][sign]->Fill(VLZ[sign].M()/1000);
+		    }//end sign
+		}//end iElec
+	    }//end iEntry
 	      inFile->Close();
-	    }//end iFile
+
 	}//end isData
 
-      TFile outFile((savePath+"ratio_"+year+".root").c_str(), "RECREATE");
+      TFile outFile((savePath+"ratio.root").c_str(), "RECREATE");
       systHist= new TH1D("systTot","",nBins,80,100 );
 
       for(bin=1; bin<=nBins; bin++)
 	{
-	  errScale=0.;
-	  for (int isData=0; isData<2; isData++)
-	    {
-	      errScale+=pow (max( abs(tmpHist[isData][1]->GetBinContent(bin)/tmpHist[isData][0]->GetBinContent(bin)) -1 ,abs(tmpHist[isData][1]->GetBinContent(bin)/tmpHist[isData][2]->GetBinContent(bin)) -1 ), 2 );
+	  errScale=pow (max( fabs(tmpHist[0][1]->GetBinContent(bin)/tmpHist[0][0]->GetBinContent(bin)) -1 ,fabs(tmpHist[0][1]->GetBinContent(bin)/tmpHist[0][2]->GetBinContent(bin)) -1 ), 2 ); //for MC
+	  double maxData1= max( fabs(tmpHist[1][1]->GetBinContent(bin)/tmpHist[1][0]->GetBinContent(bin)) -1 ,fabs(tmpHist[2][1]->GetBinContent(bin)/tmpHist[2][0]->GetBinContent(bin)) -1 );
+	  double maxData2= max( fabs(tmpHist[1][1]->GetBinContent(bin)/tmpHist[1][2]->GetBinContent(bin)) -1 ,fabs(tmpHist[2][1]->GetBinContent(bin)/tmpHist[2][2]->GetBinContent(bin)) -1 ) ;
+	  
+	  errScale+=pow ( max(maxData1, maxData2), 2 );
+
+	  // for (int isData=0; isData<2; isData++)
+	  //   {
+	  
+	  //     errScale+=pow (max( fabs(tmpHist[isData][1]->GetBinContent(bin)/tmpHist[isData][0]->GetBinContent(bin)) -1 ,fabs(tmpHist[isData][1]->GetBinContent(bin)/tmpHist[isData][2]->GetBinContent(bin)) -1 ), 2 );
 	      // cout<<"isData: "<<isData<<"iBin: "<<bin<<"errScale: "<<errScale<<endl;
-	    }
+	  //}
 	  systHist->SetBinError( bin, sqrt( errScale ));
 	}
 
       systHist->Write();
-      cout<<"systTot saved in "<<savePath+"ratio_"+year+".root"<<endl;
+      cout<<"systTot saved in "<<outFile.GetName()<<endl;
       outFile.Close();
     }
 
   // ============================RATIO PLOTS COSMETICS==========================//
 
-  // TFile *fileSyst=TFile::Open((savePath+"ratio_"+year+".root").c_str());
-  // systHist=(TH1D*)fileSyst->Get("systTot");
+  //  inFile=TFile::Open((savePath+"Correction_m12.root").c_str());
 
-  // inFile=TFile::Open((savePath+"MCDataRatio_20"+year+"_m12.root").c_str());
-  // cRatio=(TCanvas*)inFile->Get("c1");
+  //  cRatio=(TCanvas*)inFile->Get("c1");
   // TH1D *histRatio=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(1)))->GetListOfPrimitives()->At(0);
 
   // TH1D *histData=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(3);
@@ -177,195 +174,105 @@ int main(int argc, char *argv[])
 
   // TH1D *histNew=(TH1D*)histRatio->Clone();
 
-  // TCanvas *newC = new TCanvas("canvas", "");
-  
-  // TPad padUp( "padUp", "padUp", 0, 0.3, 1, 1 );
-  // padUp.SetTopMargin( 0.08 );
-  // padUp.SetBottomMargin( 0.02 );
-  // TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
-  // padDown.SetTopMargin( 0.05 );
-  // padDown.SetBottomMargin( 0.3 );
-
-  // newC->Divide(1, 2);
-  // padUp.Draw();
-  // newC->cd();
-  // padDown.Draw();
-  // padUp.cd();
-
-  
-  // histData->SetMarkerStyle(8);
-  // histData->SetMarkerSize(1.3);
-  // histData->SetMarkerColor(kBlue);
-  // histData->SetLineColor(kBlue);
-  // histMC->SetTitle("");
-  // histMC->GetYaxis()->SetTitle("Entries / GeV");
-  // histMC->GetYaxis()->SetTitleSize(0.06);
-  // histMC->GetYaxis()->SetTitleOffset(0.8);
-  // histMC->GetYaxis()->SetLabelSize(0.06);
-  // histMC->SetLineColor(kBlack);
-  // histMC->GetXaxis()->SetLabelSize(0);
-  // histMC->Scale(histData->Integral()/histMC->Integral());
-  // histMC->Draw("HIST");
-  // histData->Draw("SAME");
-  
-  // ATLASLabel(0.15, 0.8, "Internal", 1, sizeText);
-  // if (year=="15") lumi="3.1";
-  // if (year=="16") lumi="33.9";
-  // myText(0.15, 0.7, 1,("#sqrt{s}=13 TeV, L = "+lumi+" fb^{-1}").c_str(), sizeText);
-
-  // myText(0.15, 0.6, 1, ("20"+year+" data").c_str(), sizeText);
-    
-  // vectHist.push_back(histData);
-  // vectHist.push_back(histMC);
-
-  // for (unsigned int iHist=0; iHist<vectHist.size(); iHist++)
-  //   {
-  //     if (iHist==0) histName="Calibrated data";
-  //     else histName="Corrected MC";
-  //     myLineText( x, y-iHist*0.1, vectHist[iHist]->GetLineColor(), vectHist[iHist]->GetLineStyle(), "", sizeText, vectHist[iHist]->GetLineWidth(), lsize  ); 
-  //     myMarkerText( x, y-iHist*0.1, vectHist[iHist]->GetMarkerColor(), vectHist[iHist]->GetMarkerStyle(), histName.c_str(), sizeText, vectHist[iHist]->GetMarkerSize(), lsize);    }
-  
-  // padDown.cd();
-
-  // systHist->SetLineColorAlpha(0,0);
-  // systHist->SetMarkerColorAlpha(0,0);
-  // systHist->SetFillColor(kGreen-10);
-  // systHist->Draw("E2");
-
-  // systHist->SetStats(0);
-  // systHist->GetXaxis()->SetLabelSize(0.14);
-  // systHist->GetXaxis()->SetTitleSize(0.15);
-  // systHist->GetXaxis()->SetTitleOffset(0.92);
-  // systHist->GetXaxis()->SetTitle("m_{ee} [GeV]");
-
-  // systHist->GetYaxis()->SetTitle("(Data / MC) -1");
-  // systHist->GetYaxis()->SetTitleOffset(0.35);
-  // systHist->GetYaxis()->SetLabelSize(0.12);
-  // systHist->GetYaxis()->SetTitleSize(0.13);
-  // systHist->GetYaxis()->SetRangeUser(-0.052, 0.052);
-    
-  // TLine *line= new TLine(80, 0, 100, 0);
-  // line->SetLineColor( kBlack);
-  // line->SetLineStyle(3);
-  // line->Draw();
-
-  // histNew->Draw("SAME");
- 
-
-  // newC->SaveAs((savePath+"Ratio_"+year+".pdf").c_str());
-    
-  // cout<<"Plots done."<<endl;
-  // return 0;
-
-
-
-  inFile=TFile::Open((savePath+"Ratio_m12.root").c_str());
-  cRatio=(TCanvas*)inFile->Get("c1");
-  TH1D *histRatio=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(1)))->GetListOfPrimitives()->At(0);
-
-  TH1D *histData=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(3);
-  TH1D *histMC=(TH1D*)((TPad*)(cRatio->GetListOfPrimitives()->At(0)))->GetListOfPrimitives()->At(2);
-
-  cout<<"mean high: "<<histData->GetMean()<<" rms:  "<<histData->GetRMS()<<endl;
-  cout<<"mean low: "<<histMC->GetMean()<<" rms:  "<<histMC->GetRMS()<<endl;
-
   TCanvas *newC = new TCanvas("canvas", "");
   
-  TPad padUp( "padUp", "padUp", 0, 0.05, 1, 1 );
-  // padUp.SetTopMargin( 0.08 );
-  // padUp.SetBottomMargin( 0.02 );
-  // TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
-  //padDown.SetTopMargin( 0.05 );
-  //padDown.SetBottomMargin( 0.3 );
-
-  //newC->Divide(1, 2);
+  TPad padUp( "padUp", "padUp", 0, 0.3, 1, 1 );
+  padUp.SetTopMargin( 0.08 );
+  padUp.SetBottomMargin( 0.02 );
   padUp.Draw();
-  newC->cd();
-  //  padDown.Draw();
   padUp.cd();
 
+
+  inFile=TFile::Open("Correction_m12.root");
+  //  inFile=new TFile("/sps/atlas/a/aguerguichon/Calibration/Test/Distri_m12.root");
+  TH1D* histData= (TH1D*) inFile->Get("data15_corrected_m12_1");
+  TH1D* histMC= (TH1D*) inFile->Get("mcZee_corrected_m12_0");
   
   histData->SetMarkerStyle(8);
-  histData->SetMarkerSize(1);
+  histData->SetMarkerSize(1.3);
   histData->SetMarkerColor(kBlue);
   histData->SetLineColor(kBlue);
   histMC->SetTitle("");
-  histMC->GetYaxis()->SetTitle("Fraction of events");
+  histMC->GetYaxis()->SetTitle("Entries / 0.5 GeV");
   histMC->GetYaxis()->SetTitleSize(0.06);
-  histMC->GetYaxis()->SetTitleOffset(0.9);
-  histMC->GetYaxis()->SetLabelSize(0.05);
-  histMC->SetMarkerStyle(25);
-  histMC->SetMarkerSize(1);
-  histMC->SetMarkerColor(kRed);
-  histMC->SetLineColor(kRed);
+  histMC->GetYaxis()->SetTitleOffset(0.8);
+  histMC->GetYaxis()->SetLabelSize(0.06);
+  histMC->SetLineColor(kBlack);
   histMC->GetXaxis()->SetLabelSize(0);
   histMC->Scale(histData->Integral()/histMC->Integral());
   histMC->GetYaxis()->SetRangeUser(0, 0.1);
-  histMC->GetXaxis()->SetLabelSize(0.05);
-  histMC->GetXaxis()->SetTitleSize(0.06);
-  histMC->GetXaxis()->SetTitleOffset(0.9);
-  histMC->GetXaxis()->SetTitle("m_{ee} [GeV]");
-  histMC->Draw();
-  // histData->GetYaxis()->SetRangeUser(0, 0.1);
-  // histData->GetXaxis()->SetLabelSize(0.14);
-  // histData->GetXaxis()->SetTitleSize(0.15);
-  // histData->GetXaxis()->SetTitleOffset(0.92);
-  // histData->GetXaxis()->SetTitle("m_{ee} [GeV]");
-  histData->GetYaxis()->SetTitle("Fraction of events");
+  histMC->Draw("HIST");
   histData->Draw("SAME");
+  ATLASLabel(0.13, 0.8, "Work in progress", 1, sizeText);
+  myText(0.13, 0.7, 1,"#sqrt{s}=13 TeV, L = 3.2 (2015) + 32.9 (2016) fb^{-1}", sizeText);
 
-    x=0.62;
-  lsize=0.02;
-  y=0.87;
-    sizeText=0.055;
-  
-  ATLASLabel(0.15, 0.85, "Internal", 1, sizeText);
-  myText(0.15, 0.75, 1,"#sqrt{s}=13 TeV, L = 33.9 fb^{-1}", sizeText);
-
-  myText(0.15, 0.65, 1, "2016 calibrated data", sizeText);
-  //  myText(0.15, 0.7, 1, "MC", sizeText);
-    
   vectHist.push_back(histData);
   vectHist.push_back(histMC);
 
   for (unsigned int iHist=0; iHist<vectHist.size(); iHist++)
     {
-      if (iHist==0) histName="High #mu (30 < #mu  <35)";
-      else histName="Low #mu (15 < #mu  <20)";
+      if (iHist==0) histName="Data";
+      else histName="MC";
       myLineText( x, y-iHist*0.1, vectHist[iHist]->GetLineColor(), vectHist[iHist]->GetLineStyle(), "", sizeText, vectHist[iHist]->GetLineWidth(), lsize  ); 
       myMarkerText( x, y-iHist*0.1, vectHist[iHist]->GetMarkerColor(), vectHist[iHist]->GetMarkerStyle(), histName.c_str(), sizeText, vectHist[iHist]->GetMarkerSize(), lsize);    }
   
-  // padDown.cd();
 
+  TPad padDown( "padDown", "padDown", 0, 0, 1, 0.3 );
+  padDown.SetTopMargin( 0.05 );
+  padDown.SetBottomMargin( 0.3 );
 
-  // histRatio->SetStats(0);
-  // histRatio->GetXaxis()->SetLabelSize(0.14);
-  // histRatio->GetXaxis()->SetTitleSize(0.15);
-  // histRatio->GetXaxis()->SetTitleOffset(0.92);
-  // histRatio->GetXaxis()->SetTitle("m_{ee} [GeV]");
+  newC->cd();
+  padDown.Draw();
 
-  // histRatio->GetYaxis()->SetTitle("(High / Low) -1");
-  // histRatio->GetYaxis()->SetTitleOffset(0.35);
-  // histRatio->GetYaxis()->SetLabelSize(0.12);
-  // histRatio->GetYaxis()->SetTitleSize(0.13);
-  // histRatio->GetYaxis()->SetRangeUser(-0.052, 0.072);
-    
-  // histRatio->Draw();
+  padDown.cd();
 
-  //   TLine *line= new TLine(80, 0, 100, 0);
-  // line->SetLineColor( kBlack);
-  // line->SetLineStyle(3);
-  // line->Draw();
+  TFile *fileSyst=TFile::Open((savePath+"ratio.root").c_str());
+  systHist=(TH1D*)fileSyst->Get("systTot");
 
+  TH1D* histNew=(TH1D*)histData->Clone();
+  histNew->Add(histMC, -1);
+  histNew->Divide(histMC);
 
-  newC->SaveAs((savePath+"Ratio_mu.pdf").c_str());
-  newC->SaveAs((savePath+"Ratio_mu.eps").c_str());
-  newC->SaveAs((savePath+"Ratio_mu.png").c_str());
-    
+  TH1D* histRatio = static_cast<TH1D*>(systHist->Clone());
+  for ( int i=1; i<=systHist->GetNbinsX(); i++) {
+    histRatio->SetBinContent(i, histNew->GetBinContent(i));
+    histRatio->SetBinError( i, histNew->GetBinError(i));
+  }
+
+  systHist->SetMarkerColor(kGreen-10);
+  systHist->SetFillColor(kGreen-10);
+  newC->Update();
+
+  systHist->SetStats(0);
+  systHist->GetXaxis()->SetLabelSize(0.14);
+  systHist->GetXaxis()->SetTitleSize(0.15);
+  systHist->GetXaxis()->SetTitleOffset(0.92);
+  systHist->GetXaxis()->SetTitle("m_{ee} [GeV]");
+
+  systHist->GetYaxis()->SetTitle("(Data / MC) -1");
+  systHist->GetYaxis()->SetTitleOffset(0.35);
+  systHist->GetYaxis()->SetLabelSize(0.12);
+  systHist->GetYaxis()->SetTitleSize(0.13);
+  systHist->GetYaxis()->SetRangeUser(-0.06, 0.06);
+  //  histRatio->GetYaxis()->SetRangeUser(-0.06, 0.06);
+  newC->Update();
+
+  TLine *line= new TLine(80, 0, 100, 0);
+  line->SetLineColor( kBlack);
+  line->SetLineStyle(3);
+  systHist->Draw("E2");
+  histRatio->Draw("same");
+  line->Draw();
+  newC->Update();
+
+  cout<<histRatio->GetBinContent(1)<<endl;
+
+  padDown.ls();
+  
+  newC->SaveAs((savePath+"Ratio.eps").c_str());
+  inFile->Close();
   cout<<"Plots done."<<endl;
   return 0;
-
-
 
 
 

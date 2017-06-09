@@ -1,13 +1,9 @@
-variablesBias=inputC
 variablesBias=statTree
-variablesBias=indepTemplates
-variablesBias=indepDistorded
-variablesBias=bootstrap
 variablesBias=iConf
 variablesBias=jConf
 
 selectTree= ConfigurationsCTree
 
-nBins=6
+nBins=68
 
 methodStats=1
